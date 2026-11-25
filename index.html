@@ -123,7 +123,7 @@ body.driving:not(.ready) #game .maplibregl-ctrl-bottom-right{bottom:calc(var(--p
 const DB_URL='https://konvoj-f1824-default-rtdb.europe-west1.firebasedatabase.app';
 const $=id=>document.getElementById(id);
 // önfrissítés: ha a szerveren újabb verzió van, azt töltjük be a gyorsítótárazott helyett (a számot a version.txt-vel együtt kell növelni)
-const V=22;
+const V=23;
 fetch('version.txt',{cache:'no-store'}).then(r=>r.ok?r.text():0).then(t=>{const n=parseInt(t);if(n>V&&new URLSearchParams(location.search).get('v')!==String(n))location.replace('?v='+n)}).catch(()=>{});
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
@@ -281,7 +281,11 @@ let alertMode=load('konvoj.alert','voice')==='beep'?'beep':'voice';
 function showSound(){$('sound').innerHTML=`<svg viewBox="0 0 24 24">${ALERTS[alertMode][1]}</svg>`}
 function renderSound(){const p=$('panel');p.replaceChildren();p.hidden=false;
  const head=el('div',null,'head');head.append(el('h2','Figyelmeztetés'),action('✕',()=>p.hidden=true,'x'));p.append(head,el('p','Így jelez az app, ha traffipax vagy kapu van előtted.'));
- for(const[id,m]of Object.entries(ALERTS))p.append(action(m[0]+(id===alertMode?' ✓':''),()=>{alertMode=id;save('konvoj.alert',id);showSound();unlockAudio();beep();if(id==='voice')say('Traffipax előtted');p.hidden=true},id===alertMode?'sel':''))}
+ for(const[id,m]of Object.entries(ALERTS))p.append(action(m[0]+(id===alertMode?' ✓':''),()=>{alertMode=id;save('konvoj.alert',id);showSound();unlockAudio();beep();if(id==='voice')say('Traffipax előtted');p.hidden=true},id===alertMode?'sel':''));
+ const list=huVoices();p.append(el('h3','Bemondó hangja'));
+ const cur=list.find(v=>v.voiceURI===voiceId)||list[0];
+ list.forEach(v=>p.append(action(v.name+(v===cur?' ✓':''),()=>{voiceId=v.voiceURI;save('konvoj.voice',voiceId);unlockAudio();speechSynthesis.cancel();say('Figyelj, traffipax előtted.');renderSound()},v===cur?'sel':'')));
+ p.append(el('p','Természetesebb hang: iPhone Beállítások → Kisegítő lehetőségek → Felolvasott tartalom → Hangok → Magyar, majd tölts le egy jobb minőségű változatot, és nyisd meg újra az appot.'))}
 $('sound').onclick=renderSound;showSound();
 // ---------- Csapatüzenetek ----------
 let chat=[],seenChat=null,replyTo='';
@@ -386,7 +390,13 @@ function showTurn(at,cur=0){if(turnLayer){map.removeLayer(turnLayer);turnLayer=n
  const n=turnPts.length;turnDir=bearing(pointAt(Math.max(0,to-12)),turnPts[n-1]);
  const tip=turnPts[n-1];turnLayer=L.layerGroup([L.polyline(turnPts.map(p=>[p.lat,p.lon]),{color:'#fff',weight:7}),
   L.marker([tip.lat,tip.lon],{icon:L.divIcon({className:'tip',html:`<div style="transform:rotate(${turnDir}deg)"></div>`,iconSize:null}),interactive:false})]).addTo(map)}
-function say(text){if(!audio||!window.speechSynthesis)return;const u=new SpeechSynthesisUtterance(text);u.lang='hu-HU';speechSynthesis.speak(u)}
+// a telefonon elérhető magyar hangok közül a legtermészetesebbet választjuk
+let voiceId=load('konvoj.voice',null);
+const voiceScore=v=>{const n=(v.name+' '+v.voiceURI).toLowerCase();return/premium|prémium/.test(n)?5:/enhanced|kibővített|javított|natural|neural|online/.test(n)?4:/siri|google/.test(n)?3:/compact|espeak/.test(n)?1:2};
+function huVoices(){return(window.speechSynthesis?.getVoices?.()||[]).filter(v=>/^hu([-_]|$)/i.test(v.lang)).sort((a,b)=>voiceScore(b)-voiceScore(a))}
+huVoices();
+function say(text){if(!audio||!window.speechSynthesis)return;const u=new SpeechSynthesisUtterance(text);u.lang='hu-HU';
+ const list=huVoices(),v=list.find(v=>v.voiceURI===voiceId)||list[0];if(v)u.voice=v;u.rate=1;u.pitch=1;speechSynthesis.speak(u)}
 function renderNav(at){const box=$('nav'),total=cum[cum.length-1],rest=kmTxt(Math.max(0,total-at))+' a célig';
  const i=steps.findIndex((t,i)=>i>0&&t.at>at-20&&!['new name','depart','notification','exit roundabout','exit rotary'].includes(t.maneuver.type)&&!(t.maneuver.type==='continue'&&(t.maneuver.modifier||'straight')==='straight'));
  box.replaceChildren();box.style.display='block';
