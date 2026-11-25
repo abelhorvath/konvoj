@@ -86,6 +86,15 @@ body.driving:not(.ready) .leaflet-bottom{bottom:calc(var(--pb) + 70px)}
 #game .maplibregl-ctrl-bottom-right{bottom:calc(var(--pb) + 144px)}
 body.driving:not(.ready) #game .maplibregl-ctrl-bottom-right{bottom:calc(var(--pb) + 70px)}
 #game .maplibregl-ctrl-attrib{background:#0008;font-size:9px;color:#ddd}#game .maplibregl-ctrl-attrib a{color:#ddd}
+#nav{left:12px;right:12px;top:calc(124px + env(safe-area-inset-top));padding:10px 12px;font-weight:400;border-radius:18px}
+#nav .turn{display:flex;align-items:center;gap:12px}#nav .ico{font-size:40px;line-height:1;font-weight:700;min-width:44px;text-align:center}
+#nav b{display:block;font-size:22px}#nav span{display:block;font-size:14px}#nav small{display:block;margin-top:2px;font-size:12px;color:#b8b8c8}
+#nav .lanes{display:flex;justify-content:center;gap:5px;margin-top:10px}
+#nav .lanes i{flex:1;max-width:52px;padding:7px 0;border-radius:10px;border:2px dashed #ffffff40;color:#ffffff55;font-style:normal;font-size:22px;font-weight:700;text-align:center;white-space:nowrap}
+#nav .lanes i.ok{border:2px solid #fff;background:#16a34a;color:#fff}
+#nav .hint{margin-top:8px;text-align:center;font-weight:700;font-size:16px;color:#7dffa8}
+.tip div{width:26px;height:24px;margin:-12px 0 0 -13px;background:#fff;clip-path:polygon(50% 0,100% 100%,0 100%);filter:drop-shadow(0 0 3px #000)}.tip{width:0;height:0}
+.gtip{width:30px;height:28px}.gtip div{width:100%;height:100%;background:#fff;clip-path:polygon(50% 0,100% 100%,0 100%)}
 </style></head><body>
 <div id="map"></div>
 <div id="game" hidden></div>
@@ -103,7 +112,7 @@ body.driving:not(.ready) #game .maplibregl-ctrl-bottom-right{bottom:calc(var(--p
 const DB_URL='https://konvoj-f1824-default-rtdb.europe-west1.firebasedatabase.app';
 const $=id=>document.getElementById(id);
 // önfrissítés: ha a szerveren újabb verzió van, azt töltjük be a gyorsítótárazott helyett (a számot a version.txt-vel együtt kell növelni)
-const V=14;
+const V=15;
 fetch('version.txt',{cache:'no-store'}).then(r=>r.ok?r.text():0).then(t=>{const n=parseInt(t);if(n>V&&new URLSearchParams(location.search).get('v')!==String(n))location.replace('?v='+n)}).catch(()=>{});
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
@@ -173,7 +182,7 @@ function update(g){document.body.classList.add('driving');const c=g.coords,t=g.t
  guide();
  fetchCams();check();share()}
 $('go').onclick=async()=>{
- document.body.classList.remove('ready');follow=true;if(pos)map.setView([pos.lat,pos.lon],17);
+ document.body.classList.remove('ready');follow=true;navigating=true;wasFollow=false;if(pos){map.setView([pos.lat,pos.lon],17);if(route.length)guide()}
  try{audio=audio||new(window.AudioContext||window.webkitAudioContext)();audio.resume()}catch(e){}
  try{await navigator.wakeLock.request('screen')}catch(e){}
  if(watching)return;
@@ -250,29 +259,83 @@ function showHelp(){$('help').querySelector('span').textContent=needHelp?'Rendbe
 function ready(){if(team&&DB_URL)return true;$('status').textContent='Előbb lépj be egy csapatba.';return false}
 $('help').onclick=()=>{if(!ready())return;if(!pos){$('status').textContent='Előbb nyomd meg az Indulás gombot.';return}needHelp=!needHelp;showHelp();lastSent=0;share()};
 $('meet').onclick=()=>{if(!ready())return;picking=true;$('status').textContent='Koppints a térképre a találkozópont helyén.'};
-let follow=true,dest=null,destMarker=null,route=[],lines=[],lastRoute=0,routeId=0;
+let navigating=false,steps=[],cum=[],turnPts=[],turnDir=0,turnLayer=null,follow=true,dest=null,destMarker=null,route=[],lines=[],lastRoute=0,routeId=0;
 map.on('dragstart',()=>follow=false);
 $('center').onclick=()=>{follow=true;if(pos)map.setView([pos.lat,pos.lon],17)};
 const kmTxt=m=>m<1000?Math.round(m/10)*10+' m':(m/1000).toFixed(1)+' km';
-function clearDest(){document.body.classList.remove('ready');routeId++;dest=null;route=[];lines.forEach(l=>map.removeLayer(l));lines=[];if(destMarker)map.removeLayer(destMarker);destMarker=null;$('nav').style.display='none'}
-function setDest(p){clearDest();dest=p;document.body.classList.add('ready');const b=document.createElement('button');b.textContent='Úti cél törlése';b.onclick=()=>{map.closePopup();clearDest()};
+function clearDest(){document.body.classList.remove('ready');routeId++;dest=null;route=[];steps=[];showTurn(null);lines.forEach(l=>map.removeLayer(l));lines=[];if(destMarker)map.removeLayer(destMarker);destMarker=null;$('nav').style.display='none'}
+function setDest(p){clearDest();navigating=false;dest=p;document.body.classList.add('ready');const b=document.createElement('button');b.textContent='Úti cél törlése';b.onclick=()=>{map.closePopup();clearDest()};
  destMarker=L.marker([p.lat,p.lon],{icon:L.divIcon({className:'dest',html:'<div></div>',iconSize:null})}).bindPopup(b).addTo(map);
  if(pos)getRoute(true);else{follow=false;map.setView([p.lat,p.lon],15);$('status').textContent='Útvonalhoz nyomd meg az Indulás gombot.'}}
 async function getRoute(fit){if(!dest||!pos)return;lastRoute=Date.now();const id=++routeId;
- try{const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${pos.lon},${pos.lat};${dest.lon},${dest.lat}?overview=full&geometries=geojson`);if(!r.ok)throw 0;
+ try{const r=await fetch(`https://router.project-osrm.org/route/v1/driving/${pos.lon},${pos.lat};${dest.lon},${dest.lat}?overview=full&geometries=geojson&steps=true`);if(!r.ok)throw 0;
   const x=(await r.json()).routes[0];if(id!==routeId)return;
-  route=x.geometry.coordinates.map(c=>({lat:c[1],lon:c[0]}));lines.forEach(l=>map.removeLayer(l));
+  route=x.geometry.coordinates.map(c=>({lat:c[1],lon:c[0]}));
+  cum=[0];for(let i=1;i<route.length;i++)cum.push(cum[i-1]+dist(route[i-1],route[i]));
+  const raw=x.legs?.[0]?.steps||[],k=cum[cum.length-1]/(raw.reduce((a,t)=>a+t.distance,0)||1);let at=0;
+  steps=raw.map(t=>{const o={...t,at:at*k};at+=t.distance;return o});spoken.clear();lines.forEach(l=>map.removeLayer(l));
   const ll=route.map(p=>[p.lat,p.lon]);lines=[L.polyline(ll,{color:'#2a0838',weight:13,opacity:.9}).addTo(map),L.polyline(ll,{color:'#d94bff',weight:7,opacity:1}).addTo(map)];
   $('nav').style.display='block';$('nav').textContent=`${kmTxt(x.distance)} · kb. ${Math.max(1,Math.round(x.duration/60))} perc`;
-  if(fit){follow=false;map.fitBounds(lines[1].getBounds(),{padding:[60,120]});gameFit()}}
+  if(fit){follow=false;map.fitBounds(lines[1].getBounds(),{padding:[60,120]});gameFit()}else if(pos)guide()}
  catch(e){if(id===routeId)$('status').textContent='Az útvonaltervezés most nem sikerült.'}}
-function guide(){if(!dest)return;if(dist(pos,dest)<40){clearDest();$('status').textContent='Megérkeztél!';return}
- if(Date.now()-lastRoute<20000)return;
- if(!route.length){getRoute();return}
- let best=0,bd=Infinity;route.forEach((p,i)=>{const d=dist(pos,p);if(d<bd){bd=d;best=i}});
- if(bd>150){getRoute();return}
- let left=bd;for(let i=best+1;i<route.length;i++)left+=dist(route[i-1],route[i]);
- $('nav').textContent=kmTxt(left)+' a célig'}
+// ---------- Kanyarok és sávok ----------
+const spoken=new Set();
+const ARROW={left:'←',right:'→','slight left':'↖','slight right':'↗','sharp left':'↙','sharp right':'↘',straight:'↑',uturn:'↶',none:'↑'};
+function turnText(t){const m=t.maneuver,d=m.modifier||'straight',side=d.includes('left')?'balra':d.includes('right')?'jobbra':'';
+ if(m.type==='arrive')return'Megérkezel';
+ if(m.type.includes('roundabout')||m.type==='rotary')return m.exit?`Körforgalom: ${m.exit}. kijárat`:'Körforgalom';
+ if(d==='uturn')return'Fordulj vissza';
+ if(!side)return'Haladj egyenesen';
+ if(m.type==='off ramp')return'Hajts le '+side;
+ if(m.type==='on ramp')return'Hajts fel '+side;
+ if(m.type==='merge')return'Sorolj be '+side;
+ if(m.type==='fork'||d.startsWith('slight'))return'Tarts '+side;
+ return'Fordulj '+side}
+// a jó sávok helye alapján megmondjuk, merre kell sorolni
+function laneHint(lanes,t){if(lanes){const ok=lanes.map((l,i)=>l.valid?i:-1).filter(i=>i>=0);
+  if(!ok.length||ok.length===lanes.length)return'';
+  const first=ok[0]===0,last=ok[ok.length-1]===lanes.length-1;
+  if(last&&!first)return ok.length>1?`Sorolj a jobb oldali ${ok.length} sáv egyikébe`:'Sorolj a jobb szélső sávba';
+  if(first&&!last)return ok.length>1?`Sorolj a bal oldali ${ok.length} sáv egyikébe`:'Sorolj a bal szélső sávba';
+  return'Maradj a zölddel jelölt sávban'}
+ const m=t.maneuver,d=m.modifier||'';if(!['off ramp','fork'].includes(m.type))return'';
+ return d.includes('right')?'Sávváltás: sorolj jobbra':d.includes('left')?'Sávváltás: sorolj balra':''}
+function project(p){const k=Math.cos(p.lat*Math.PI/180);let best={d:Infinity,at:0};
+ for(let i=1;i<route.length;i++){const a=route[i-1],b=route[i],dx=(b.lon-a.lon)*k,dy=b.lat-a.lat,l=dx*dx+dy*dy;
+  const u=l?Math.max(0,Math.min(1,((p.lon-a.lon)*k*dx+(p.lat-a.lat)*dy)/l)):0;
+  const q={lat:a.lat+(b.lat-a.lat)*u,lon:a.lon+(b.lon-a.lon)*u},d=dist(p,q);if(d<best.d)best={d,at:cum[i-1]+(cum[i]-cum[i-1])*u}}
+ return best}
+function pointAt(m){let i=1;while(i<cum.length-1&&cum[i]<m)i++;const a=route[i-1],b=route[i],u=Math.max(0,Math.min(1,(m-cum[i-1])/((cum[i]-cum[i-1])||1)));return{lat:a.lat+(b.lat-a.lat)*u,lon:a.lon+(b.lon-a.lon)*u}}
+// fehér nyíl az útvonalon, ott ahol kanyarodni vagy lehajtani kell
+function showTurn(at){if(turnLayer){map.removeLayer(turnLayer);turnLayer=null}
+ if(at==null||route.length<2){turnPts=[];return}
+ const from=Math.max(0,at-80),to=Math.min(cum[cum.length-1],at+60);
+ turnPts=[pointAt(from),...route.filter((p,i)=>cum[i]>from&&cum[i]<to),pointAt(to)];
+ const n=turnPts.length;turnDir=bearing(pointAt(Math.max(0,to-12)),turnPts[n-1]);
+ const tip=turnPts[n-1];turnLayer=L.layerGroup([L.polyline(turnPts.map(p=>[p.lat,p.lon]),{color:'#fff',weight:7}),
+  L.marker([tip.lat,tip.lon],{icon:L.divIcon({className:'tip',html:`<div style="transform:rotate(${turnDir}deg)"></div>`,iconSize:null}),interactive:false})]).addTo(map)}
+function say(text){if(!audio||!window.speechSynthesis)return;const u=new SpeechSynthesisUtterance(text);u.lang='hu-HU';speechSynthesis.speak(u)}
+function renderNav(at){const box=$('nav'),total=cum[cum.length-1],rest=kmTxt(Math.max(0,total-at))+' a célig';
+ const i=steps.findIndex((t,i)=>i>0&&t.at>at-20&&!['new name','depart','notification'].includes(t.maneuver.type)&&!(t.maneuver.type==='continue'&&(t.maneuver.modifier||'straight')==='straight'));
+ box.replaceChildren();box.style.display='block';
+ if(i<0){box.append(el('b',rest));showTurn(null);return}
+ const t=steps[i],d=Math.max(0,t.at-at),text=turnText(t),lanes=t.intersections?.[0]?.lanes;
+ const near=d<1500,showLanes=near&&lanes&&lanes.length>1,hint=near?laneHint(showLanes?lanes:null,t):'';
+ const row=el('div',null,'turn'),info_=el('div');
+ const road=[t.exits&&'Kijárat '+t.exits,t.ref,t.destinations||t.name].filter(Boolean).join(' · ');
+ info_.append(el('b',kmTxt(d)),el('span',text));if(road)info_.append(el('small',road));info_.append(el('small',rest));
+ row.append(el('div',t.maneuver.type==='arrive'?'🏁':t.maneuver.type.includes('round')||t.maneuver.type==='rotary'?'↻':ARROW[t.maneuver.modifier]||'↑','ico'),info_);box.append(row);
+ if(showLanes){const l=el('div',null,'lanes');lanes.forEach(x=>l.append(el('i',(x.indications||['none']).map(n=>ARROW[n]||'↑').join(''),x.valid?'ok':'')));box.append(l)}
+ if(hint)box.append(el('div',hint,'hint'));
+ showTurn(near?t.at:null);
+ if(!navigating||t.maneuver.type==='arrive')return;
+ const stage=d<200?'now':d<900?'soon':null;
+ if(stage&&!spoken.has(i+stage)){spoken.add(i+stage);say((stage==='soon'?`${Math.round(d/50)*50} méter múlva: `:'')+text+(hint?'. '+hint:''))}}
+function guide(){if(!dest||!pos)return;if(dist(pos,dest)<40){clearDest();$('status').textContent='Megérkeztél!';return}
+ if(!route.length){if(Date.now()-lastRoute>=20000)getRoute();return}
+ const p=project(pos);
+ if(p.d>150){if(Date.now()-lastRoute>=20000)getRoute();return}
+ renderNav(p.at)}
 $('search').onsubmit=async e=>{e.preventDefault();const q=$('q').value.trim();if(!q)return;$('q').blur();$('status').textContent='Keresés…';
  try{const near=pos?`&viewbox=${pos.lon-1},${pos.lat+1},${pos.lon+1},${pos.lat-1}`:'';
   const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=hu${near}&q=${encodeURIComponent(q)}`);if(!r.ok)throw 0;const[x]=await r.json();
@@ -282,7 +345,7 @@ map.on('contextmenu',e=>{if(!picking)setDest({lat:e.latlng.lat,lon:e.latlng.lng}
 map.on('click',e=>{if(!picking||!team)return;picking=false;const p={lat:e.latlng.lat,lon:e.latlng.lng};
  fetch(url('meet'),{method:'PUT',body:JSON.stringify(p)}).then(r=>{if(!r.ok)throw 0;showMeet(p);$('status').textContent='Találkozópont beállítva.'}).catch(()=>$('status').textContent='Nem sikerült menteni.')});
 // ---------- Játékstílusú 3D térkép (MapLibre + OpenFreeMap) ----------
-let gm=null,gmReady=false,gmTheme=null,gmLoading=null,camKey='',wasFollow=false,routeRef=null;
+let gm=null,gmReady=false,gmTheme=null,gmLoading=null,camKey='',wasFollow=false,routeRef=null,turnRef=null;
 const gmMarks=new Map();
 function gameStyle(c){
  const src={type:'vector',url:'https://tiles.openfreemap.org/planet'},w=(a,b)=>['interpolate',['exponential',1.5],['zoom'],10,a,18,b];
@@ -291,7 +354,7 @@ function gameStyle(c){
  const big=['motorway','trunk','primary'],mid=['secondary','tertiary'],small=['minor','service'];
  const label=(id,layer,size,extra,place)=>({id,type:'symbol',source:'om','source-layer':layer,...extra,layout:{'text-field':['coalesce',['get','name:hu'],['get','name']],'text-font':['Noto Sans Regular'],'text-size':size,...place},paint:{'text-color':c.text,'text-halo-color':c.halo,'text-halo-width':1.5}});
  return{version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
-  sources:{om:src,route:{type:'geojson',data:routeData()}},
+  sources:{om:src,route:{type:'geojson',data:lineData(route)},turn:{type:'geojson',data:lineData(turnPts)}},
   layers:[{id:'bg',type:'background',paint:{'background-color':c.land}},
    fill('green','landcover',c.green,['match',['get','class'],['wood','grass'],true,false]),fill('park','park',c.green),fill('water','water',c.water),
    {id:'river',type:'line',source:'om','source-layer':'waterway',paint:{'line-color':c.water,'line-width':w(1,6)}},
@@ -301,9 +364,10 @@ function gameStyle(c){
    line('rail',['rail'],c.edge,w(.5,3),11),
    {id:'route-glow',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':c.glow,'line-width':w(9,34),'line-opacity':.45,'line-blur':6}},
    {id:'route',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':c.route,'line-width':w(4,15)}},
+   {id:'turn',type:'line',source:'turn',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#fff','line-width':w(3,11)}},
    label('road-name','transportation_name',12,{minzoom:13},{'symbol-placement':'line'}),
    label('place','place',15,{filter:['match',['get','class'],['city','town','village','suburb','neighbourhood'],true,false]},{})]}}
-const routeData=()=>({type:'Feature',properties:{},geometry:{type:'LineString',coordinates:route.length>1?route.map(p=>[p.lon,p.lat]):[]}});
+const lineData=a=>({type:'Feature',properties:{},geometry:{type:'LineString',coordinates:a.length>1?a.map(p=>[p.lon,p.lat]):[]}});
 function loadLib(){if(window.maplibregl)return Promise.resolve();if(gmLoading)return gmLoading;
  return gmLoading=new Promise((ok,no)=>{const c=document.createElement('link');c.rel='stylesheet';c.href='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.append(c);
   const j=document.createElement('script');j.src='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';j.onload=ok;j.onerror=()=>{gmLoading=null;j.remove();no()};document.head.append(j)})}
@@ -312,10 +376,10 @@ function gameFail(){stopGame();$('status').textContent='A 3D térkép nem tölt�
 async function applyGame(){const theme=MAPS[mapId][2];gmTheme=theme;if(!theme){stopGame();return}
  try{await loadLib();if(gmTheme!==theme)return;stopGame();$('game').hidden=false;
   const c=pos||{lat:map.getCenter().lat,lon:map.getCenter().lng};
-  const m=gm=new maplibregl.Map({container:'game',style:gameStyle(theme),center:[c.lon,c.lat],zoom:pos?16.5:13,pitch:55,maxPitch:65,attributionControl:false});
+  const m=gm=new maplibregl.Map({container:'game',style:gameStyle(theme),center:[c.lon,c.lat],zoom:pos?15.5:13,pitch:0,maxPitch:65,attributionControl:false});
   m.addControl(new maplibregl.AttributionControl({compact:true,customAttribution:'OpenFreeMap'}),'bottom-right');
   const timer=setTimeout(()=>{if(gm===m&&!gmReady)gameFail()},15000);
-  m.once('load',()=>{clearTimeout(timer);if(gm!==m)return;gmReady=true;camKey='';wasFollow=false;routeRef=null;
+  m.once('load',()=>{clearTimeout(timer);if(gm!==m)return;gmReady=true;camKey='';wasFollow=false;routeRef=null;turnRef=null;
    m.getContainer().querySelector('.maplibregl-compact-show')?.classList.remove('maplibregl-compact-show');gameSync()});
   m.on('dragstart',()=>follow=false);
   const send=(name,ll)=>map.fire(name,{latlng:L.latLng(ll.lat,ll.lng)});
@@ -334,7 +398,7 @@ function mark(key,p,cls,tap,arrow){let o=gmMarks.get(key);
  o.tap=tap;o.seen=true;o.m.setLngLat([p.lon,p.lat]);const e=o.m.getElement();cls.split(' ').forEach(n=>e.classList.add(n));return o}
 function popup(p,content){new maplibregl.Popup().setLngLat([p.lon,p.lat]).setDOMContent(content).addTo(gm)}
 function gameSync(){if(!gm||!gmReady)return;
- if(routeRef!==route){routeRef=route;gm.getSource('route').setData(routeData())}
+ if(routeRef!==route){routeRef=route;gm.getSource('route').setData(lineData(route))}
  gmMarks.forEach(o=>o.seen=false);
  if(pos){const o=mark('me',pos,'gme',null,true);o.m.setRotation(heading??0)}
  if(dest)mark('dest',dest,'gdest',()=>{if(confirm('Törlöd az úti célt?'))clearDest()});
@@ -343,9 +407,11 @@ function gameSync(){if(!gm||!gmReady)return;
  pins.forEach((l,id)=>{const q=l.getLatLng(),p={lat:q.lat,lon:q.lng},red=l.options.fillColor==='#ff2d2d';
   const o=mark('f'+id,p,'gfriend',()=>popup(p,l.getPopup().getContent().cloneNode(true)));o.m.getElement().classList.toggle('sos',red)});
  if(meetMarker){const q=meetMarker.getLatLng(),p={lat:q.lat,lon:q.lng};const o=mark('meet',p,'gpin',()=>popup(p,meetMarker.getPopup().getContent()));o.m.getElement().textContent='🏁'}
+ if(turnRef!==turnPts){turnRef=turnPts;gm.getSource('turn').setData(lineData(turnPts))}
+ if(turnPts.length){const o=mark('turn',turnPts[turnPts.length-1],'gtip',null,true);o.m.setRotation(turnDir)}
  gmMarks.forEach((o,k)=>{if(!o.seen){o.m.remove();gmMarks.delete(k)}});
- if(follow&&pos){const key=[pos.lat,pos.lon,heading].join();
-  if(!wasFollow||key!==camKey){camKey=key;gm.easeTo({center:[pos.lon,pos.lat],bearing:heading??0,pitch:58,padding:{top:Math.round(innerHeight*.3),bottom:0,left:0,right:0},duration:900,...(wasFollow?{}:{zoom:16.8})})}}
+ if(follow&&pos){const key=[pos.lat,pos.lon,heading,navigating].join();
+  if(!wasFollow||key!==camKey){camKey=key;gm.easeTo({center:[pos.lon,pos.lat],bearing:navigating?heading??gm.getBearing():0,pitch:navigating?58:0,padding:{top:navigating?Math.round(innerHeight*.35):0,bottom:0,left:0,right:0},duration:900,...(wasFollow?{}:{zoom:navigating?16.8:15.5})})}}
  wasFollow=follow&&!!pos}
 function gameFit(){if(!gm||!gmReady||route.length<2)return;const b=new maplibregl.LngLatBounds();route.forEach(p=>b.extend([p.lon,p.lat]));wasFollow=false;
  gm.fitBounds(b,{padding:{top:200,bottom:250,left:50,right:50},pitch:0,bearing:0})}
