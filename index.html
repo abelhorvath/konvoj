@@ -102,12 +102,17 @@ body.driving:not(.ready) #game .maplibregl-ctrl-bottom-right{bottom:calc(var(--p
 .glabel{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:3px;padding:1px 7px;border-radius:8px;background:#101114e0;color:#fff;font-size:11px;font-weight:700;white-space:nowrap}
 .leaflet-tooltip.flabel{background:#101114e0;border:0;color:#fff;font-weight:700;font-size:11px}.leaflet-tooltip.flabel::before{display:none}
 #alert{right:68px;padding:11px 8px;font-size:18px}
+#music{position:fixed;z-index:998;left:12px;top:calc(70px + env(safe-area-inset-top));display:flex;height:46px;max-width:calc(100% - 82px);background:#0b0d17e6;border:1px solid #6d5cff;border-radius:16px;overflow:hidden}
+#music button{background:none;border-radius:0;padding:0 14px;white-space:nowrap}
+#music #musicOpen::before{content:'♫';margin-right:8px;font-size:17px;color:var(--mc,#b9aeff)}
+#musicPick{border-left:1px solid #ffffff22!important}#musicPick[hidden]{display:none}
 </style></head><body>
 <div id="map"></div>
 <div id="game" hidden></div>
 <div id="panel" hidden></div>
 <form id="search"><input id="q" placeholder="Hova mész?" enterkeyhint="search"><button>Keresés</button><button type="button" id="center">◎</button></form>
 <button id="layers" type="button" aria-label="Térkép választása"><svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5"/></svg></button>
+<div id="music"><button id="musicOpen" type="button">Zene</button><button id="musicPick" type="button" aria-label="Másik zeneapp" hidden>▾</button></div>
 <div id="nav" class="box"></div>
 <div id="alert" class="box"></div>
 <div id="speed" class="box"><b id="kmh">–</b>km/h</div>
@@ -119,7 +124,7 @@ body.driving:not(.ready) #game .maplibregl-ctrl-bottom-right{bottom:calc(var(--p
 const DB_URL='https://konvoj-f1824-default-rtdb.europe-west1.firebasedatabase.app';
 const $=id=>document.getElementById(id);
 // önfrissítés: ha a szerveren újabb verzió van, azt töltjük be a gyorsítótárazott helyett (a számot a version.txt-vel együtt kell növelni)
-const V=17;
+const V=18;
 fetch('version.txt',{cache:'no-store'}).then(r=>r.ok?r.text():0).then(t=>{const n=parseInt(t);if(n>V&&new URLSearchParams(location.search).get('v')!==String(n))location.replace('?v='+n)}).catch(()=>{});
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
@@ -213,15 +218,19 @@ function add(type){if(!pos){$('status').textContent='Előbb nyomd meg az Indulá
 $('addCam').onclick=()=>add('cam');$('addGate').onclick=()=>add('gate');
 draw();
 let needHelp=false,meetMarker=null,picking=false;const helped=new Set();
-let team=load('konvoj.team',null),lastSent=0,moving=false;
+let team=load('konvoj.team',null),lastSent=0,moving=false,shareSpeed=load('konvoj.shareSpeed',false)===true;
+// a barát pillanatnyi sebessége, csak ha megosztja és friss az adat
+const speedOf=f=>Number.isFinite(f.speed)&&f.speed>=0&&f.speed<400&&Date.now()-f.time<45000?Math.round(f.speed):null;
+function speedButton(){const b=action('',()=>{shareSpeed=!shareSpeed;save('konvoj.shareSpeed',shareSpeed);paint();lastSent=0;if(pos)share()});
+ const paint=()=>{b.textContent='Sebességem megosztása: '+(shareSpeed?'BE ✓':'KI');b.className=shareSpeed?'sel':''};paint();return b}
 const friends=L.layerGroup().addTo(map),pins=new Map();
 const url=id=>`${DB_URL}/groups/${team.code}${id?'/'+id:''}.json`;
 function share(){const m=(pos&&last&&Number($('kmh').textContent)>5)||false;
  if(!team||!DB_URL||Date.now()-lastSent<5000)return;lastSent=Date.now();moving=m;
- fetch(url(team.id),{method:'PUT',body:JSON.stringify({name:team.name,lat:pos.lat,lon:pos.lon,moving,help:needHelp,time:{'.sv':'timestamp'}})})
+ fetch(url(team.id),{method:'PUT',body:JSON.stringify({name:team.name,lat:pos.lat,lon:pos.lon,moving,help:needHelp,...(shareSpeed&&{speed:Number($('kmh').textContent)||0}),time:{'.sv':'timestamp'}})})
   .then(r=>{if(!r.ok)throw 0}).catch(()=>$('status').textContent='A helyed megosztása nem sikerült.')}
 function info(f){const d=document.createElement('div'),to=String(f.name).slice(0,20),age=Math.max(0,Math.round((Date.now()-f.time)/1000));
- [String(f.name).slice(0,20),f.help===true?'⚠️ Gond van, megállt vagy lemaradt':'',f.moving?'Úton van':'Áll',pos?(dist(pos,f)/1000).toFixed(1)+' km-re tőled':'',age<60?'Most frissült':Math.round(age/60)+' perce frissült']
+ [String(f.name).slice(0,20),f.help===true?'⚠️ Gond van, megállt vagy lemaradt':'',f.moving?'Úton van':'Áll',speedOf(f)!=null?'Sebesség: '+speedOf(f)+' km/h':'',pos?(dist(pos,f)/1000).toFixed(1)+' km-re tőled':'',age<60?'Most frissült':Math.round(age/60)+' perce frissült']
  .forEach((t,i)=>{if(!t)return;const e=document.createElement(i?'div':'b');e.textContent=t;d.appendChild(e)});
  const b=document.createElement('button');b.textContent='Üzenet neki';b.dataset.to=to;d.appendChild(b);return d}
 document.addEventListener('click',e=>{const to=e.target.dataset?.to;if(to)renderChat(to)},true);
@@ -229,7 +238,7 @@ async function pull(){if(!team||!DB_URL||document.hidden)return;
  try{const r=await fetch(url());if(!r.ok)throw 0;const all=await r.json()||{},seen=new Set();
   for(const[id,f]of Object.entries(all)){if(['meet','pins','chat'].includes(id)||id===team.id||!Number.isFinite(f.lat)||!Number.isFinite(f.lon)||Date.now()-f.time>600000)continue;seen.add(id);
    let m=pins.get(id);if(!m){m=L.circleMarker([f.lat,f.lon],{radius:10,color:'#fff',fillColor:'#00c27a',fillOpacity:1}).bindPopup('').bindTooltip(document.createElement('span'),{permanent:true,direction:'bottom',offset:[0,8],className:'flabel'}).addTo(friends);pins.set(id,m)}
-   m.setLatLng([f.lat,f.lon]);m.label=String(f.name).slice(0,20);const tip=document.createElement('span');tip.textContent=m.label;m.setTooltipContent(tip);m.setPopupContent(info(f));m.setStyle({fillColor:f.help===true?'#ff2d2d':'#00c27a'});
+   m.setLatLng([f.lat,f.lon]);m.label=String(f.name).slice(0,20)+(speedOf(f)!=null?' · '+speedOf(f)+' km/h':'');const tip=document.createElement('span');tip.textContent=m.label;m.setTooltipContent(tip);m.setPopupContent(info(f));m.setStyle({fillColor:f.help===true?'#ff2d2d':'#00c27a'});
    if(f.help!==true)helped.delete(id);else if(!helped.has(id)){helped.add(id);beep();$('status').textContent='⚠️ '+String(f.name).slice(0,20)+': gond van! Koppints a piros pontra.'}}
   members=[...seen].map(id=>all[id]);renderList();
   const next=Object.entries(all.pins||{}).filter(([,p])=>Number.isFinite(p.lat)&&Number.isFinite(p.lon)).map(([key,p])=>({key,lat:p.lat,lon:p.lon,type:p.type==='gate'?'gate':'cam',by:String(p.by).slice(0,20)}));
@@ -252,18 +261,28 @@ function renderList(){const box=$('members');if(!box||!team)return;box.replaceCh
  const me_=el('div',null,'member');me_.append(el('b',team.name+' (te)'),el('small',watching&&pos?'Megosztod a helyed':'Nyomd meg az Indulás gombot, hogy lássanak'));box.append(me_);
  members.forEach(f=>{const age=Math.max(0,Math.round((Date.now()-f.time)/60000));
   const row=action('',()=>{follow=false;map.setView([f.lat,f.lon],16);gm?.easeTo({center:[f.lon,f.lat],zoom:15.5});$('panel').hidden=true},'member'+(f.help===true?' sos':''));
-  row.append(el('b',String(f.name).slice(0,20)),el('small',[f.help===true?'⚠️ Gond van':f.moving?'Úton van':'Áll',pos?kmTxt(dist(pos,f))+' tőled':'',age?age+' perce':'most'].filter(Boolean).join(' · ')));box.append(row)});
+  row.append(el('b',String(f.name).slice(0,20)),el('small',[f.help===true?'⚠️ Gond van':f.moving?'Úton van':'Áll',speedOf(f)!=null?speedOf(f)+' km/h':'',pos?kmTxt(dist(pos,f))+' tőled':'',age?age+' perce':'most'].filter(Boolean).join(' · ')));box.append(row)});
  $('count').textContent='Résztvevők: '+(members.length+1)}
 function renderTeam(){const p=$('panel');p.replaceChildren();
  const head=el('div',null,'head');head.append(el('h2','Csapat'),action('✕',()=>p.hidden=true,'x'));p.append(head);
  if(!DB_URL){p.append(el('p','A csapat funkció még nincs bekapcsolva: hiányzik az adatbázis címe (Firebase).'));return}
  if(!team){const n=el('input'),c=el('input');n.placeholder='A neved';n.maxLength=20;c.placeholder='Csapatkód (ha kaptál)';c.autocapitalize='off';c.autocomplete='off';
   const m=el('p');m.id='msg';
-  p.append(el('p','Aki ismeri a csapatkódot, látja a résztvevők helyét. Csak barátnak küldd el.'),n,action('Új csapat létrehozása',()=>join(true,n),'main'),c,action('Csatlakozás kóddal',()=>join(false,n,c)),m);return}
+  p.append(el('p','Aki ismeri a csapatkódot, látja a résztvevők helyét. Csak barátnak küldd el.'),n,speedButton(),action('Új csapat létrehozása',()=>join(true,n),'main'),c,action('Csatlakozás kóddal',()=>join(false,n,c)),m);return}
  const copy=action('Csapatkód másolása',async()=>{try{await navigator.clipboard.writeText(team.code);copy.textContent='Kimásolva ✓'}catch(e){prompt('Csapatkód:',team.code)}},'main');
  const count=el('h3');count.id='count';const list=el('div');list.id='members';
- p.append(el('code',team.code),copy,count,list,action('Kilépés a csapatból',leave,'leave'));renderList()}
+ p.append(el('code',team.code),copy,speedButton(),count,list,action('Kilépés a csapatból',leave,'leave'));renderList()}
 $('team').onclick=()=>{$('panel').hidden=false;renderTeam()};
+// ---------- Zene ----------
+const PLAYERS={spotify:['Spotify','spotify://','#1ed760'],apple:['Apple Music','music://','#ff4e6b']};
+let player=load('konvoj.music',null);
+function showMusic(){const m=PLAYERS[player];$('musicOpen').textContent=m?m[0]:'Zene';$('music').style.setProperty('--mc',m?m[2]:'#b9aeff');$('musicPick').hidden=!m}
+function renderMusic(){const p=$('panel');p.replaceChildren();p.hidden=false;
+ const head=el('div',null,'head');head.append(el('h2','Zene'),action('✕',()=>p.hidden=true,'x'));p.append(head);
+ for(const[id,m]of Object.entries(PLAYERS))p.append(action(m[0]+(id===player?' ✓':''),()=>{player=id;save('konvoj.music',id);showMusic();p.hidden=true},id===player?'sel':''));
+ p.append(el('p','A felső gombbal nyílik meg a zeneapp. Indítsd el a zenét, majd térj vissza a Konvojba.'))}
+$('musicOpen').onclick=()=>{const m=PLAYERS[player];if(!m){renderMusic();return}location.href=m[1]};
+$('musicPick').onclick=renderMusic;showMusic();
 // ---------- Csapatüzenetek ----------
 let chat=[],seenChat=null,replyTo='';
 const QUICK=['Megyek 👍','Várjatok meg','Megálltam','Hol vagy?','Késem pár percet','Ott találkozunk'];
