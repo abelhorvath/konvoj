@@ -222,7 +222,7 @@ body.ready #cancel{display:block}body.driving:not(.ready) #gorow{display:none}
 const DB_URL='https://konvoj-f1824-default-rtdb.europe-west1.firebasedatabase.app';
 const $=id=>document.getElementById(id);
 // önfrissítés: ha a szerveren újabb verzió van, azt töltjük be a gyorsítótárazott helyett (a számot a version.txt-vel együtt kell növelni)
-const V=37;
+const V=39;
 fetch('version.txt',{cache:'no-store'}).then(r=>r.ok?r.text():0).then(t=>{const n=parseInt(t);if(n>V&&new URLSearchParams(location.search).get('v')!==String(n))location.replace('?v='+n+location.hash)}).catch(()=>{});
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
@@ -384,6 +384,7 @@ function update(g){document.body.classList.add('driving');const c=g.coords,t=g.t
  if(kmh>5){if(c.heading!=null&&!isNaN(c.heading))heading=c.heading;else if(last&&dist(last,pos)>5)heading=bearing(last,pos)}
  last={...pos,t};
  $('kmh').textContent=kmh??'–';
+ if(kmh>10){const was=onRoad();roadAt=Date.now();if(!was)setTimeout(pubTick,0)}
  if($('status').textContent==='GPS keresése…')$('status').textContent='';
  tripStep(kmh??0,c.accuracy,t);
  if(!me){me=L.marker([pos.lat,pos.lon],{icon:L.divIcon({className:'arrow',html:'<div></div>',iconSize:null}),zIndexOffset:1000}).addTo(map);map.setView([pos.lat,pos.lon],17)}
@@ -447,7 +448,7 @@ function join(isNew,nameBox,codeBox){const name=nameBox.value.trim().slice(0,20)
  if(!name){$('msg').textContent='Írd be a neved.';return}
  if(!/^[a-f0-9]{20}$/.test(code)){$('msg').textContent='Hibás csapatkód (20 karakter).';return}
  team={name,code,id:rnd()};save('konvoj.team',team);resetX();members=[];shared=[];chat=[];seenChat=null;draw();lastSent=0;if(pos)share();renderTeam();pull()}
-function leave(){if(!confirm('Biztosan kilépsz a csapatból?'))return;fetch(url(team.id),{method:'DELETE'}).catch(()=>{});fetch(url('x/park/'+team.id),{method:'DELETE'}).catch(()=>{});fetch(url('x/prof/'+team.id),{method:'DELETE'}).catch(()=>{});
+function leave(){if(!confirm('Biztosan kilépsz a csapatból?'))return;fetch(url(team.id),{method:'DELETE'}).catch(()=>{});fetch(url('x/park/'+team.id),{method:'DELETE'}).catch(()=>{});fetch(url('x/prof/'+team.id),{method:'DELETE'}).catch(()=>{});fetch(url('x/home/'+team.id),{method:'DELETE'}).catch(()=>{});
  team=null;members=[];shared=[];chat=[];seenChat=null;draw();$('chat').classList.remove('new');showMeet(null);save('konvoj.team',null);friends.clearLayers();pins.clear();resetX();renderTeam()}
 function renderList(){const box=$('members');if(!box||!team)return;box.replaceChildren();
  const me_=el('div',null,'member');me_.append(el('b',team.name+' (te)'),el('small',invisible()?'Láthatatlan vagy':watching&&pos?'Megosztod a helyed':'Nyomd meg az Indulás gombot, hogy lássanak'));box.append(me_);
@@ -963,11 +964,21 @@ function fillPark(){const box=$('pklist');if(!box)return;const key=JSON.stringif
   if(s.id==='me')c.append(action('Elindultam, törlöm',unpark,'leave'));box.append(c)})}
 // ---------- Jelölők a térképen (törzshely, parkolás) ----------
 const extraLayer=L.layerGroup().addTo(map);let extraList=[],extraKey='';
-function drawExtras(){const next=[...(team?spots().map(([k,s])=>({key:'s'+k,lat:s.lat,lon:s.lon,icon:'star',label:cut(s.name,40),tap:renderSpots})):[]),...parks().map(s=>({key:'k'+s.id,lat:s.lat,lon:s.lon,icon:'park',label:s.name,tap:renderPark})),...found.map((s,i)=>({key:'g'+s.lat+','+s.lon,lat:s.lat,lon:s.lon,icon:s.kind==='fuel'?'pump':'bolt',label:s.name,tap:renderStations})),...via.map((v,i)=>({key:'v'+i,lat:v.lat,lon:v.lon,icon:'flag',label:v.name,tap:overview}))];
+function drawExtras(){const next=[...(team?spots().map(([k,s])=>({key:'s'+k,lat:s.lat,lon:s.lon,icon:'star',label:cut(s.name,40),tap:renderSpots})):[]),...parks().map(s=>({key:'k'+s.id,lat:s.lat,lon:s.lon,icon:'park',label:s.name,tap:renderPark})),...found.map((s,i)=>({key:'g'+s.lat+','+s.lon,lat:s.lat,lon:s.lon,icon:s.kind==='fuel'?'pump':'bolt',label:s.name,tap:renderStations})),...via.map((v,i)=>({key:'v'+i,lat:v.lat,lon:v.lon,icon:'flag',label:v.name,tap:overview})),...homes()];
  const key=JSON.stringify(next);if(key===extraKey)return;extraKey=key;extraList=next;extraLayer.clearLayers();
  next.forEach(x=>L.marker([x.lat,x.lon],{icon:L.divIcon({className:'pin',html:ic(x.icon),iconSize:[30,30]})}).on('click',x.tap).addTo(extraLayer))}
-function readX(x){X=x&&typeof x==='object'?x:{};readTrip(X.trip);readDest(X.dest);readVote(X.vote);readEvents();readSpots();fillPark();drawExtras()}
+function readX(x){X=x&&typeof x==='object'?x:{};readTrip(X.trip);readDest(X.dest);readVote(X.vote);readEvents();readSpots();fillPark();syncHome();drawExtras()}
 function resetX(){X={};voiceSeen=null;spotCount={};hideCard();drawExtras();document.body.classList.toggle('inteam',!!team)}
+// ---------- Otthon megosztása (csak a saját csapattal, a nyilvános módban soha) ----------
+let shareHome=load('konvoj.shareHome',null),homeAsked=false;
+const homes=()=>team?Object.entries(X.home||{}).filter(([id,h])=>id!==team.id&&Number.isFinite(h?.lat)&&Number.isFinite(h?.lon)).map(([id,h])=>{const name=cut(h.name,20)+' otthona';
+ return{key:'h'+id,lat:h.lat,lon:h.lon,icon:'home',label:name,tap:()=>card('home'+id,name,[['Útvonal oda',()=>takeDest({lat:h.lat,lon:h.lon,name})]])}}):[];
+function setShareHome(on){shareHome=on;save('konvoj.shareHome',on);syncHome()}
+function syncHome(){if(!team||!DB_URL)return;const old=X.home?.[team.id],h=places.home;
+ if(h&&shareHome===null&&!homeAsked&&$('card').hidden&&$('panel').hidden){homeAsked=true;card('askhome','Lássák a csapattagok az otthonodat a térképen?',[['Igen, lássák',()=>setShareHome(true)],['Nem',()=>setShareHome(false)]])}
+ if(shareHome&&h){if(!old||old.lat!==h.lat||old.lon!==h.lon||old.name!==team.name)put('x/home/'+team.id,{lat:h.lat,lon:h.lon,name:team.name,time:{'.sv':'timestamp'}})}
+ else if(old)fetch(url('x/home/'+team.id),{method:'DELETE'}).then(()=>pull()).catch(()=>{});
+ if(X.home&&!(shareHome&&h))delete X.home[team.id]}
 // ---------- Autó-dosszié ----------
 const DUE=[['inspection','Műszaki vizsga lejár'],['insurance','Biztosítás fordulónapja'],['vignette','Autópálya-matrica lejár'],['other','Egyéb határidő']];
 let car=load('konvoj.car',{});
@@ -1065,13 +1076,14 @@ function remember(){if(!dest||!myDest)return;recent=[{lat:dest.lat,lon:dest.lon,
 function drawQuick(){const box=$('quick');box.replaceChildren();
  [['home','home','Haza'],['work','work','Munka']].forEach(([k,i,t])=>box.append(tap(i,t,()=>places[k]?goTo({...places[k],name:t}):renderPlaces())));
  places.fav.forEach(f=>box.append(tap('star',f.name,()=>goTo(f))));recent.slice(0,3).forEach(r=>box.append(tap('clock',r.name,()=>goTo(r))))}
-function savePlaces(){save('konvoj.places',places);drawQuick()}
+function savePlaces(){save('konvoj.places',places);drawQuick();syncHome()}
 function renderPlaces(){const p=sheet('Kedvenc helyek');
  const here=dest?{lat:dest.lat,lon:dest.lon}:pos?{lat:pos.lat,lon:pos.lon}:null;
  if(here){p.append(el('p',dest?'A mentés a kiválasztott úti célra vonatkozik.':'A mentés a mostani helyedre vonatkozik.'),
   tap('home','Mentés: Haza',()=>{places.home=here;savePlaces();renderPlaces()},'main'),tap('work','Mentés: Munka',()=>{places.work=here;savePlaces();renderPlaces()},'main'),
   tap('star','Mentés kedvencnek',()=>{const n=prompt('A hely neve:',cut(myDest&&dest?myDest:'',30));if(!n?.trim())return;places.fav=[...places.fav,{...here,name:cut(n.trim(),30)}].slice(-8);savePlaces();renderPlaces()},'main'))}
  else p.append(el('p','Válassz úti célt a keresőben, vagy nyomd meg az Indulás gombot, és itt el tudod menteni.'));
+ if(places.home&&team)p.append(tap('home','Otthonom látszik a csapatnak: '+(shareHome?'BE ✓':'KI'),()=>{setShareHome(!shareHome);renderPlaces()},shareHome?'sel':''));
  [['home','Haza'],['work','Munka']].forEach(([k,t])=>{if(places[k])p.append(action(t+' törlése',()=>{places[k]=null;savePlaces();renderPlaces()},'leave'))});
  places.fav.forEach(f=>p.append(action(f.name+' törlése',()=>{places.fav=places.fav.filter(x=>x!==f);savePlaces();renderPlaces()},'leave')))}
 // ---------- Útvonal áttekintés: alternatívák, megállók ----------
@@ -1193,7 +1205,9 @@ fetch('veda.json?v='+V).then(r=>{if(!r.ok)throw 0;return r.json()}).then(a=>{ved
 setInterval(()=>{if(watching&&pos&&!document.hidden){if(last&&Date.now()-last.t>15000){$('kmh').textContent='0';samples=[];smooth=null;track=[]}share()}},30000);
 // ---------- Mindenki: a többi Konvoj-felhasználó (csak aki maga is bekapcsolta) ----------
 // Az adatbázis nyilvános, ezért ide csak becenév, autórajz és kb. 300 méterre kerekített hely kerül, sebesség soha
-const PUB='konvojpublicchannel1',PUB_NEAR=600;
+const PUB='konvojpublicchannel1',PUB_NEAR=600,PUB_SEE=5000;
+// „úton vagyok”: 10 km/h felett, és még 5 percig utána (piros lámpa, rövid megállás)
+let roadAt=0;const onRoad=()=>roadAt>0&&Date.now()-roadAt<300000;
 let pubOn=load('konvoj.pub',false)===true,pubName=load('konvoj.pubName',''),pubId=load('konvoj.pubId','')||'',blocked=load('konvoj.blocked',[]),pubUsers=new Map(),pubSent=0,pubBusy=false,pubSeen=new Set(),pubMsgs=[];
 const pubLayer=L.layerGroup().addTo(map),pubDots=new Map();
 const pubUrl=path=>`${DB_URL}/groups/${PUB}/${path}.json`;
@@ -1206,14 +1220,15 @@ function setPub(on){pubOn=on;save('konvoj.pub',on);
  if(on){pubId=rnd();save('konvoj.pubId',pubId);pubSeen.clear();pubMsgs=[];pubSent=0;pubTick()}
  else{pubRemove();if(pubId&&DB_URL)fetch(pubUrl('in/'+pubId),{method:'DELETE'}).catch(()=>{});pubClear()}}
 async function pubTick(){if(!pubOn||!DB_URL||document.hidden||pubBusy)return;pubBusy=true;const me=pubId;
- try{if(invisible()||atHome()){if(pubSent)pubRemove()}
+ try{if(!onRoad()){if(pubSent)pubRemove();if(pubUsers.size){pubUsers.clear();pubDraw()}return}
+  if(invisible()||atHome()){if(pubSent)pubRemove()}
   else if(pos&&watching&&Date.now()-pubSent>14000){pubSent=Date.now();
    await fetch(pubUrl('u/'+me),{method:'PUT',body:JSON.stringify({name:pubName,lat:coarse(pos.lat,.003),lon:coarse(pos.lon,.0045),car:profile.car,color:profile.color,time:{'.sv':'timestamp'}})})}
   const get=async path=>{const r=await fetch(pubUrl(path));if(!r.ok)throw 0;return await r.json()||{}},[all,inbox]=await Promise.all([get('u'),get('in/'+me)]);
   if(!pubOn||me!==pubId)return;pubUsers.clear();
   for(const[id,u]of Object.entries(all)){const age=Date.now()-u.time;
    if(age>600000){fetch(pubUrl('u/'+id),{method:'DELETE'}).catch(()=>{});continue}
-   if(id===me||blocked.includes(id)||age>90000||!Number.isFinite(u.lat)||!Number.isFinite(u.lon))continue;
+   if(id===me||blocked.includes(id)||age>90000||!Number.isFinite(u.lat)||!Number.isFinite(u.lon)||!pos||dist(pos,u)>PUB_SEE)continue;
    pubUsers.set(id,{id,lat:u.lat,lon:u.lon,name:cut(u.name||'Sofőr',20),car:u.car,color:u.color})}
   for(const[key,m]of Object.entries(inbox)){if(pubSeen.has(key))continue;pubSeen.add(key);
    if(!m||blocked.includes(m.from)||Date.now()-m.time>600000||typeof m.text!=='string')continue;
@@ -1243,13 +1258,16 @@ function renderStranger(id,name){const u=pubUsers.get(id),near=u&&pubNear(u),p=s
 function renderPublic(){const p=sheet('Mindenki');
  if(!DB_URL){p.append(el('p','Ehhez hiányzik az adatbázis.'));return}
  if(!pubOn){const n=el('input');n.placeholder='Beceneved (ezt látják)';n.maxLength=20;n.value=pubName||team?.name||'';const m=el('p');
-  p.append(el('p','Ha bekapcsolod, látod a többi felhasználót, akik szintén bekapcsolták, és ők is látnak téged a térképen.'),
-   el('p','Idegenek is lehetnek köztük. Csak a becenevedet, az autód rajzát és a kb. 300 méterre kerekített helyedet osztjuk meg, a sebességedet nem. Az adat és az üzenet nem titkos, ne írj le semmi személyeset. A mentett Otthonod 300 méteres körzetében rejtve maradsz.'),n,
-   action('Bekapcsolom',()=>{const v=n.value.trim().slice(0,20);if(!v){m.textContent='Írj be egy becenevet.';return}pubName=v;save('konvoj.pubName',v);setPub(true);renderPublic()},'main'),m);return}
- p.append(el('p',!watching?'Nyomd meg az Indulás gombot, hogy te is látszódj.':invisible()?'Láthatatlan módban vagy, most nem látnak.':atHome()?'Otthon vagy, ezért most rejtve maradsz.':'Látható vagy mint '+pubName+'.'),el('p','Felhasználók a térképen: '+pubUsers.size));
- const near=[...pubUsers.values()].filter(pubNear);p.append(el('h3','A közeledben'));
- if(!near.length)p.append(el('p','Most senki sincs a közeledben.'));near.forEach(u=>p.append(action(u.name,()=>renderStranger(u.id),'main')));
+  p.append(el('p','Ha úton vagy, látod azokat a Konvoj-felhasználókat 5 km-en belül, akik szintén úton vannak, és ők is látnak téged.'),
+   el('p','Idegenek is lehetnek köztük. Csak a becenevedet, az autód rajzát és a kb. 300 méterre kerekített helyedet osztjuk meg, a sebességedet nem. Az adat és az üzenet nem titkos, ne írj le semmi személyeset. A mentett Otthonod 300 méteres körzetében rejtve maradsz. Bármikor kikapcsolhatod: Több → Mindenki.'),n,
+   action('Rendben, bekapcsolva',()=>{const v=n.value.trim().slice(0,20);if(!v){m.textContent='Írj be egy becenevet.';n.focus();return}pubName=v;save('konvoj.pubName',v);setPub(true);p.hidden=true},'main'),
+   action('Nem kérem',()=>{save('konvoj.pub',false);p.hidden=true},'leave'),m);return}
+ p.append(el('p',!onRoad()?'Most nem vagy úton, ezért nem látsz senkit, és téged sem látnak. Indulás után, 10 km/h felett kapcsol be.':invisible()?'Láthatatlan módban vagy, most nem látnak.':atHome()?'Otthon vagy, ezért most rejtve maradsz.':'Látható vagy mint '+pubName+'.'),el('p','Felhasználók 5 km-en belül: '+pubUsers.size));
+ const near=[...pubUsers.values()].filter(pubNear);p.append(el('h3','Egészen közel (600 m)'));
+ if(!near.length)p.append(el('p','Most senki sincs ilyen közel.'));near.forEach(u=>p.append(action(u.name,()=>renderStranger(u.id),'main')));
  if(blocked.length)p.append(action(`Letiltások törlése (${blocked.length})`,()=>{blocked=[];save('konvoj.blocked',blocked);renderPublic()}));
  p.append(action('Kikapcsolom',()=>{setPub(false);renderPublic()},'leave'))}
+// alapból ajánljuk: az első megnyitáskor egy koppintással bekapcsolható
+if(load('konvoj.pub',null)===null&&DB_URL&&!location.hash.includes('join'))setTimeout(()=>{if($('panel').hidden&&!navigating)renderPublic()},3000);
 setInterval(pubTick,5000);pubTick();
 </script></body></html>
