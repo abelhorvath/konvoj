@@ -102,12 +102,16 @@ body.driving:not(.ready) #game .maplibregl-ctrl-bottom-right{bottom:calc(var(--p
 .glabel{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:3px;padding:1px 7px;border-radius:8px;background:#101114e0;color:#fff;font-size:11px;font-weight:700;white-space:nowrap}
 .leaflet-tooltip.flabel{background:#101114e0;border:0;color:#fff;font-weight:700;font-size:11px}.leaflet-tooltip.flabel::before{display:none}
 #alert{right:68px;padding:11px 8px;font-size:18px}
+#sound{position:fixed;z-index:999;right:66px;top:calc(70px + env(safe-area-inset-top));width:46px;height:46px;padding:0;background:#0b0d17e6;border:1px solid #6d5cff}
+#sound svg{width:24px;height:24px;vertical-align:middle;fill:none;stroke:#b9aeff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#alert{right:122px;font-size:16px}
 </style></head><body>
 <div id="map"></div>
 <div id="game" hidden></div>
 <div id="panel" hidden></div>
 <form id="search"><input id="q" placeholder="Hova mész?" enterkeyhint="search"><button>Keresés</button><button type="button" id="center">◎</button></form>
 <button id="layers" type="button" aria-label="Térkép választása"><svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5"/></svg></button>
+<button id="sound" type="button" aria-label="Figyelmeztetés hangja"></button>
 <div id="nav" class="box"></div>
 <div id="alert" class="box"></div>
 <div id="speed" class="box"><b id="kmh">–</b>km/h</div>
@@ -119,7 +123,7 @@ body.driving:not(.ready) #game .maplibregl-ctrl-bottom-right{bottom:calc(var(--p
 const DB_URL='https://konvoj-f1824-default-rtdb.europe-west1.firebasedatabase.app';
 const $=id=>document.getElementById(id);
 // önfrissítés: ha a szerveren újabb verzió van, azt töltjük be a gyorsítótárazott helyett (a számot a version.txt-vel együtt kell növelni)
-const V=21;
+const V=22;
 fetch('version.txt',{cache:'no-store'}).then(r=>r.ok?r.text():0).then(t=>{const n=parseInt(t);if(n>V&&new URLSearchParams(location.search).get('v')!==String(n))location.replace('?v='+n)}).catch(()=>{});
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
@@ -163,7 +167,8 @@ async function fetchCams(){if(fetching||(lastFetch&&dist(lastFetch,pos)<10000))r
   osm=j.elements.filter(e=>e.type==='node').map(e=>({lat:e.lat,lon:e.lon,type:'cam'}));lastFetch=pos;draw();$('status').textContent=osm.length+' ismert mérőpont 30 km-en belül. A lista nem teljes!'}
  catch(e){$('status').textContent='A mérőpontok letöltése nem sikerült, újrapróbálom.';await new Promise(s=>setTimeout(s,20000))}
  fetching=false}
-function beep(){if(!audio)return;const o=audio.createOscillator();o.connect(audio.destination);o.frequency.value=880;o.start();o.stop(audio.currentTime+.4)}
+// két rövid, halk csippanás
+function beep(){if(!audio)return;[0,.17].forEach(t=>{const o=audio.createOscillator(),g=audio.createGain(),at=audio.currentTime+t;o.connect(g);g.connect(audio.destination);o.frequency.value=988;g.gain.setValueAtTime(.3,at);g.gain.exponentialRampToValueAtTime(.001,at+.12);o.start(at);o.stop(at+.13)})}
 function check(){let near=null;
  points().forEach(p=>{const d=dist(pos,p);if(d>600)return;
   if(heading!=null){const diff=Math.abs((bearing(pos,p)-heading+540)%360-180);if(diff>60&&d>40)return}
@@ -171,7 +176,7 @@ function check(){let near=null;
  if(!near){$('alert').style.display='none';return}
  const name=near.type==='gate'?'Kapu':near.type==='veda'?'Fix traffipax':'Traffipax';$('alert').style.display='block';$('alert').textContent=`${name} ${Math.round(near.d/10)*10} m`;
  const key=near.lat+','+near.lon;if(Date.now()-(warned.get(key)||0)>120000){warned.set(key,Date.now());beep();
-  if(window.speechSynthesis){const u=new SpeechSynthesisUtterance(name+' előtted');u.lang='hu-HU';speechSynthesis.speak(u)}}}
+  if(alertMode==='voice')say(name+' előtted')}}
 // Sebesség-simítás: kiszűri a GPS ugrásait
 let track=[],samples=[],smooth=null,lastOk=0;
 function speedKmh(c,t,p){
@@ -195,9 +200,10 @@ function update(g){document.body.classList.add('driving');const c=g.coords,t=g.t
  if(heading!=null&&me.getElement())me.getElement().firstChild.style.transform=`rotate(${heading}deg)`;
  guide();
  fetchCams();check();share()}
+function unlockAudio(){try{audio=audio||new(window.AudioContext||window.webkitAudioContext)();audio.resume()}catch(e){}}
 $('go').onclick=async()=>{
  document.body.classList.remove('ready');follow=true;navigating=true;wasFollow=false;if(pos){map.setView([pos.lat,pos.lon],17);if(route.length)guide()}
- try{audio=audio||new(window.AudioContext||window.webkitAudioContext)();audio.resume()}catch(e){}
+ unlockAudio();
  try{await navigator.wakeLock.request('screen')}catch(e){}
  if(watching)return;
  if(!navigator.geolocation){$('status').textContent='Ez a böngésző nem ad helyadatot.';return}
@@ -268,6 +274,15 @@ function renderTeam(){const p=$('panel');p.replaceChildren();
  const count=el('h3');count.id='count';const list=el('div');list.id='members';
  p.append(el('code',team.code),copy,speedButton(),count,list,action('Kilépés a csapatból',leave,'leave'));renderList()}
 $('team').onclick=()=>{$('panel').hidden=false;renderTeam()};
+// ---------- Figyelmeztetés módja ----------
+const ALERTS={voice:['Bemondás és jelzés','<path d="M4 9h4l5-4v14l-5-4H4zM16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11"/>'],
+ beep:['Csak kiírás és rövid jelzés','<path d="M6 17V11a6 6 0 0112 0v6l2 2H4zM10 21h4"/>']};
+let alertMode=load('konvoj.alert','voice')==='beep'?'beep':'voice';
+function showSound(){$('sound').innerHTML=`<svg viewBox="0 0 24 24">${ALERTS[alertMode][1]}</svg>`}
+function renderSound(){const p=$('panel');p.replaceChildren();p.hidden=false;
+ const head=el('div',null,'head');head.append(el('h2','Figyelmeztetés'),action('✕',()=>p.hidden=true,'x'));p.append(head,el('p','Így jelez az app, ha traffipax vagy kapu van előtted.'));
+ for(const[id,m]of Object.entries(ALERTS))p.append(action(m[0]+(id===alertMode?' ✓':''),()=>{alertMode=id;save('konvoj.alert',id);showSound();unlockAudio();beep();if(id==='voice')say('Traffipax előtted');p.hidden=true},id===alertMode?'sel':''))}
+$('sound').onclick=renderSound;showSound();
 // ---------- Csapatüzenetek ----------
 let chat=[],seenChat=null,replyTo='';
 const QUICK=['Megyek 👍','Várjatok meg','Megálltam','Hol vagy?','Késem pár percet','Ott találkozunk'];
