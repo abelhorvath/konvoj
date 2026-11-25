@@ -132,6 +132,7 @@ svg.ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;str
 #ptt svg.ic{width:30px;height:30px}
 .gpin svg.ic{width:20px;height:20px;color:#fff;margin-top:-3px}.pin svg.ic{width:18px;height:18px;color:#fff;margin-top:-2px}
 .gme.car,.gfriend.car{width:44px;height:44px;background:none;border:0;box-shadow:none;border-radius:50%}.gme.car div{width:44px;height:44px;margin:0;background:none;clip-path:none}.carsvg{width:100%;height:100%;filter:drop-shadow(0 2px 4px #000)}.gfriend.car div.body{width:100%;height:100%}
+.gstranger{width:16px;height:16px;border-radius:50%;background:#ffb020;border:3px solid #fff;box-shadow:0 0 8px #000a;cursor:pointer}.gstranger.near{width:42px;height:42px;background:#ffb02055}.gstranger svg{width:100%;height:100%}.gstranger .glabel{position:absolute;top:100%;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:12px;font-weight:700;text-shadow:0 0 4px #000,0 0 4px #000;color:#fff}.strcar{width:90px;height:90px;margin:0 auto}.strcar svg{width:100%;height:100%}
 .gfriend.sos{box-shadow:0 0 0 6px #ff2d2d80,0 0 22px 8px #ff2d2d;animation:pulse 1s infinite alternate}@keyframes pulse{to{box-shadow:0 0 0 12px #ff2d2d30,0 0 30px 12px #ff2d2d}}
 #friends{position:fixed;z-index:998;left:12px;right:122px;top:calc(68px + env(safe-area-inset-top));display:flex;gap:6px;overflow-x:auto}
 #friends button{flex:none;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:46px;padding:0;background:none}#friends small{font-size:10px;font-weight:700;text-shadow:0 0 4px #000,0 0 4px #000}#friends button.sos .ava{border-color:#ff2d2d;background:#7a0f18}
@@ -221,12 +222,13 @@ body.ready #cancel{display:block}body.driving:not(.ready) #gorow{display:none}
 const DB_URL='https://konvoj-f1824-default-rtdb.europe-west1.firebasedatabase.app';
 const $=id=>document.getElementById(id);
 // önfrissítés: ha a szerveren újabb verzió van, azt töltjük be a gyorsítótárazott helyett (a számot a version.txt-vel együtt kell növelni)
-const V=36;
+const V=37;
 fetch('version.txt',{cache:'no-store'}).then(r=>r.ok?r.text():0).then(t=>{const n=parseInt(t);if(n>V&&new URLSearchParams(location.search).get('v')!==String(n))location.replace('?v='+n+location.hash)}).catch(()=>{});
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 // ---------- Saját ikonok ----------
 const ICONS={
+ team:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-4 3-6 6.5-6s6.5 2 6.5 6M16 5a3.5 3.5 0 010 7M18 14.5c2.2.7 3.5 2.6 3.5 5.5"/>',
  cam:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
  gate:'<path d="M4 21V5h16v16M4 9h16M9 9v3M15 9v3"/>',
  accident:'<path d="M12 3l10 18H2zM12 10v5M12 18v.5"/>',
@@ -279,7 +281,7 @@ const carSvg=(shape,color)=>SHAPES[shape]?`<svg viewBox="0 0 40 40" class="carsv
 let profile=load('konvoj.profile',{car:'arrow',color:'#ff5fa2',ride:'',photo:''});
 // ---------- Állapotok ----------
 let via=[],alts=[],altIdx=0,routeInfo=null,addingStop=false,destWeather=null,found=[];
-let compassPref=load('konvoj.compass',false)===true,driveOn=load('konvoj.driveOn',true)!==false;
+let compassPref=load('konvoj.compass2',true)!==false,driveOn=load('konvoj.driveOn',true)!==false;
 let hideUntil=load('konvoj.hide',0),sosAt=load('konvoj.sos',0);
 const invisible=()=>hideUntil===-1||Date.now()<hideUntil;
 const sosOn=()=>Date.now()-sosAt<1800000;
@@ -362,6 +364,8 @@ function startCompass(){if(compassOn||!window.DeviceOrientationEvent||(typeof De
  const ask=DeviceOrientationEvent.requestPermission;
  if(typeof ask!=='function'){listen();return}
  ask.call(DeviceOrientationEvent).then(r=>{if(r==='granted')listen();else{compassOn=false;$('status').textContent='Iránytű engedély nélkül az ikon csak menet közben fordul.'}}).catch(()=>compassOn=false)}
+// megnyitásonként egyszer, az első koppintásra kérjük az engedélyt, így útvonal előtt már nem ugrik fel
+addEventListener('click',()=>startCompass(),{once:true,capture:true});
 // Sebesség-simítás: kiszűri a GPS ugrásait
 let track=[],samples=[],smooth=null,lastOk=0;
 function speedKmh(c,t,p){
@@ -420,8 +424,8 @@ function share(){const m=(pos&&last&&Number($('kmh').textContent)>5)||false;
 function info(f){const d=document.createElement('div'),to=String(f.name).slice(0,20),age=Math.max(0,Math.round((Date.now()-f.time)/1000));
  [String(f.name).slice(0,20),f.moving?'Úton van':'Áll',speedOf(f)!=null?'Sebesség: '+speedOf(f)+' km/h':'',etaText(f),X.prof?.[f.pid]?.ride?'Autó: '+cut(X.prof[f.pid].ride,30):'',f.sos?'SOS – segítséget kér!':'',pos?(dist(pos,f)/1000).toFixed(1)+' km-re tőled':'',age<60?'Most frissült':Math.round(age/60)+' perce frissült']
  .forEach((t,i)=>{if(!t)return;const e=document.createElement(i?'div':'b');e.textContent=t;d.appendChild(e)});
- const b=document.createElement('button');b.textContent='Üzenet neki';b.dataset.to=to;d.appendChild(b);return d}
-document.addEventListener('click',e=>{const to=e.target.dataset?.to;if(to)renderChat(to)},true);
+ const b=document.createElement('button');b.textContent='Üzenet neki';b.dataset.to=to;d.appendChild(b);const k=document.createElement('button');k.textContent='Megbököm';k.dataset.poke=to;d.appendChild(k);return d}
+document.addEventListener('click',e=>{const to=e.target.dataset?.to;if(to)renderChat(to);const k=e.target.dataset?.poke;if(k)send('@'+k+' Megböktelek!').then(ok=>{if(ok)$('status').textContent='Megbökted: '+k})},true);
 async function pull(){if(!team||!DB_URL||document.hidden)return;
  try{const r=await fetch(url());if(!r.ok)throw 0;const all=await r.json()||{},seen=new Set();
   for(const[id,f]of Object.entries(all)){if(['meet','pins','chat','x'].includes(id)||id===team.id||!Number.isFinite(f.lat)||!Number.isFinite(f.lon)||Date.now()-f.time>600000)continue;seen.add(id);
@@ -772,6 +776,7 @@ function gameSync(){if(!gm||!gmReady)return;
  extraList.forEach(x=>{const o=mark(x.key,x,'gpin',x.tap),e=o.m.getElement();if(e.dataset.t!==x.icon+x.label){e.dataset.t=x.icon+x.label;e.innerHTML=ic(x.icon);e.append(el('span',x.label,'glabel'))}});
  if(turnRef!==turnPts){turnRef=turnPts;gm.getSource('turn').setData(lineData(turnPts))}
  if(turnPts.length){const o=mark('turn',turnPts[turnPts.length-1],'gtip',null,true);o.m.setRotation(turnDir)}
+ pubMarks();
  gmMarks.forEach((o,k)=>{if(!o.seen){o.m.remove();gmMarks.delete(k)}});
  if(follow&&pos){const f=facing(),key=[pos.lat,pos.lon,navigating&&f!=null?Math.round(f/4):'',navigating].join();
   if(!wasFollow||key!==camKey){camKey=key;gm.easeTo({center:[pos.lon,pos.lat],bearing:navigating?f??gm.getBearing():0,pitch:navigating?66:60,padding:{top:navigating?Math.round(innerHeight*.35):0,bottom:0,left:0,right:0},duration:900,...(wasFollow?{}:{zoom:navigating?16.8:15.8})})}}
@@ -807,7 +812,7 @@ function stopFirst(p){if(!rolling())return false;p.append(el('p','Menet közben 
 function input(placeholder,type='text',value=''){const i=el('input');i.type=type;i.placeholder=placeholder;i.setAttribute('aria-label',placeholder);if(type==='number'){i.type='text';i.inputMode='decimal'}i.value=value;return i}
 function labeled(text,i){const l=el('label',null,'field');l.append(el('span',text),i);return l}
 function renderMore(){const p=sheet('Több',false),g=el('div',null,'menu');
- [['send','Cél küldése',sendMyDest],['hand','Megállás',renderStop],['pump','Kutak, töltők',renderStations],['star','Kedvencek',renderPlaces],['calendar','Talik',renderEvents],['flag','Törzshelyek',renderSpots],['park','Parkolás',renderPark],['book','Benzinpénz',renderSplit],['clock','Tankolási napló',renderFuel],['car','Autó-dosszié',renderCar],['coffee','Pihenő',renderRest],['user','Profil',renderProfile],['theme','Kinézet',renderLook],['eye','Láthatatlan',renderHide],['sos','SOS',renderSos]]
+ [['team','Mindenki',renderPublic],['send','Cél küldése',sendMyDest],['hand','Megállás',renderStop],['pump','Kutak, töltők',renderStations],['star','Kedvencek',renderPlaces],['calendar','Talik',renderEvents],['flag','Törzshelyek',renderSpots],['park','Parkolás',renderPark],['book','Benzinpénz',renderSplit],['clock','Tankolási napló',renderFuel],['car','Autó-dosszié',renderCar],['coffee','Pihenő',renderRest],['user','Profil',renderProfile],['theme','Kinézet',renderLook],['eye','Láthatatlan',renderHide],['sos','SOS',renderSos]]
  .forEach(([i,t,fn])=>g.append(tap(i,t,fn)));p.append(g)}
 $('more').onclick=renderMore;
 // ---------- Közös útvonal ----------
@@ -1014,8 +1019,8 @@ function renderLook(){const p=sheet('Kinézet');p.append(el('h3','Téma'));
  for(const[id,t]of Object.entries(THEMES)){const b=action(t.label+(id===themeId?' ✓':''),()=>{themeId=id;save('konvoj.theme',id);applyTheme(true);renderLook()},id===themeId?'sel':'');b.style.borderLeft=`14px solid ${t.a}`;p.append(b)}
  p.append(el('p','A térkép színei a „Neon 3D” nézetben váltanak a témával.'),el('h3','Beállítások'),
  action('Vezetés mód induláskor: '+(driveOn?'BE ✓':'KI'),()=>{driveOn=!driveOn;save('konvoj.driveOn',driveOn);renderLook()},driveOn?'sel':''));
- if(typeof window.DeviceOrientationEvent?.requestPermission==='function')p.append(action('Ikon forgatása álló helyzetben: '+(compassPref?'BE ✓':'KI'),()=>{compassPref=!compassPref;save('konvoj.compass',compassPref);if(compassPref)startCompass();renderLook()},compassPref?'sel':''),
-  el('p','Kikapcsolva nincs felugró engedélykérés, az ikon menet közben a GPS alapján fordul. Bekapcsolva az iPhone az app minden megnyitásakor engedélyt kér, ezt az app nem tudja megjegyeztetni.'))}
+ if(typeof window.DeviceOrientationEvent?.requestPermission==='function')p.append(action('Ikon forgatása álló helyzetben: '+(compassPref?'BE ✓':'KI'),()=>{compassPref=!compassPref;save('konvoj.compass2',compassPref);if(compassPref)startCompass();renderLook()},compassPref?'sel':''),
+  el('p','Bekapcsolva az iPhone megnyitásonként egyszer, az első koppintáskor engedélyt kér: nyomj az Engedélyezésre. Ezt az app nem tudja megjegyeztetni. Kikapcsolva az ikon csak menet közben fordul.'))}
 // ---------- Profil és autó ikon ----------
 function saveProfile(){save('konvoj.profile',profile);if(team)put('x/prof/'+team.id,{car:profile.car,color:profile.color,ride:cut(profile.ride,30),photo:profile.photo||''})}
 let profFor='';
@@ -1186,4 +1191,65 @@ setMap(load('konvoj.map2','neon'));applyGame();
 fetch('veda.json?v='+V).then(r=>{if(!r.ok)throw 0;return r.json()}).then(a=>{veda=a.map(([lat,lon,label])=>({lat,lon,label,type:'veda'}));draw()}).catch(()=>$('status').textContent='A traffipaxlista nem töltött be.');
 // álló helyzetben is frissül a megosztott helyed
 setInterval(()=>{if(watching&&pos&&!document.hidden){if(last&&Date.now()-last.t>15000){$('kmh').textContent='0';samples=[];smooth=null;track=[]}share()}},30000);
+// ---------- Mindenki: a többi Konvoj-felhasználó (csak aki maga is bekapcsolta) ----------
+// Az adatbázis nyilvános, ezért ide csak becenév, autórajz és kb. 300 méterre kerekített hely kerül, sebesség soha
+const PUB='konvojpublicchannel1',PUB_NEAR=600;
+let pubOn=load('konvoj.pub',false)===true,pubName=load('konvoj.pubName',''),pubId=load('konvoj.pubId','')||'',blocked=load('konvoj.blocked',[]),pubUsers=new Map(),pubSent=0,pubBusy=false,pubSeen=new Set(),pubMsgs=[];
+const pubLayer=L.layerGroup().addTo(map),pubDots=new Map();
+const pubUrl=path=>`${DB_URL}/groups/${PUB}/${path}.json`;
+const pubNear=u=>!!pos&&dist(pos,u)<=PUB_NEAR;
+const atHome=()=>!!(places.home&&pos&&dist(pos,places.home)<300);
+const coarse=(v,step)=>Math.round((Math.round(v/step)*step)*1e5)/1e5;
+function pubRemove(){if(pubId&&DB_URL){fetch(pubUrl('u/'+pubId),{method:'DELETE'}).catch(()=>{})}pubSent=0}
+function pubClear(){pubUsers.clear();pubDots.forEach(m=>pubLayer.removeLayer(m));pubDots.clear();gameSync()}
+function setPub(on){pubOn=on;save('konvoj.pub',on);
+ if(on){pubId=rnd();save('konvoj.pubId',pubId);pubSeen.clear();pubMsgs=[];pubSent=0;pubTick()}
+ else{pubRemove();if(pubId&&DB_URL)fetch(pubUrl('in/'+pubId),{method:'DELETE'}).catch(()=>{});pubClear()}}
+async function pubTick(){if(!pubOn||!DB_URL||document.hidden||pubBusy)return;pubBusy=true;const me=pubId;
+ try{if(invisible()||atHome()){if(pubSent)pubRemove()}
+  else if(pos&&watching&&Date.now()-pubSent>14000){pubSent=Date.now();
+   await fetch(pubUrl('u/'+me),{method:'PUT',body:JSON.stringify({name:pubName,lat:coarse(pos.lat,.003),lon:coarse(pos.lon,.0045),car:profile.car,color:profile.color,time:{'.sv':'timestamp'}})})}
+  const get=async path=>{const r=await fetch(pubUrl(path));if(!r.ok)throw 0;return await r.json()||{}},[all,inbox]=await Promise.all([get('u'),get('in/'+me)]);
+  if(!pubOn||me!==pubId)return;pubUsers.clear();
+  for(const[id,u]of Object.entries(all)){const age=Date.now()-u.time;
+   if(age>600000){fetch(pubUrl('u/'+id),{method:'DELETE'}).catch(()=>{});continue}
+   if(id===me||blocked.includes(id)||age>90000||!Number.isFinite(u.lat)||!Number.isFinite(u.lon))continue;
+   pubUsers.set(id,{id,lat:u.lat,lon:u.lon,name:cut(u.name||'Sofőr',20),car:u.car,color:u.color})}
+  for(const[key,m]of Object.entries(inbox)){if(pubSeen.has(key))continue;pubSeen.add(key);
+   if(!m||blocked.includes(m.from)||Date.now()-m.time>600000||typeof m.text!=='string')continue;
+   const msg={from:String(m.from),name:cut(m.name||'Sofőr',20),text:cut(m.text,160)};pubMsgs=[...pubMsgs,msg].slice(-30);
+   const line=msg.name+': '+msg.text;beep();say(line);navigator.vibrate?.(200);card('pubmsg',line,[['Válasz',()=>renderStranger(msg.from,msg.name)]])}
+  pubDraw()}
+ catch(e){}finally{pubBusy=false}}
+function pubDraw(){pubDots.forEach((m,id)=>{if(!pubUsers.has(id)){pubLayer.removeLayer(m);pubDots.delete(id)}});
+ pubUsers.forEach((u,id)=>{let m=pubDots.get(id);if(!m){m=L.circleMarker([u.lat,u.lon],{radius:8,color:'#fff',fillColor:'#ffb020',fillOpacity:1}).addTo(pubLayer);m.on?.('click',()=>renderStranger(id));pubDots.set(id,m)}m.setLatLng([u.lat,u.lon])});gameSync()}
+function pubMarks(){pubUsers.forEach((u,id)=>{const o=mark('p'+id,u,'gstranger',()=>renderStranger(id)),e=o.m.getElement(),near=pubNear(u),svg=near?carSvg(u.car,u.color):'',look=near+u.name+u.car+u.color;
+ if(e.dataset.look!==look){e.dataset.look=look;e.classList.toggle('near',near);e.innerHTML=svg||'';if(near)e.append(el('span',u.name,'glabel'))}})}
+async function pubSend(to,text){text=cut(String(text).trim(),160);const u=pubUsers.get(to);
+ if(!text||!pubOn)return false;if(!u||!pubNear(u)){$('status').textContent='Már nincs a közeledben.';return false}
+ try{const r=await fetch(pubUrl('in/'+to),{method:'POST',body:JSON.stringify({from:pubId,name:pubName,text,time:{'.sv':'timestamp'}})});if(!r.ok)throw 0;$('status').textContent='Elküldve.';return true}
+ catch(e){$('status').textContent='Nem sikerült elküldeni.';return false}}
+const poked=new Map();
+function renderStranger(id,name){const u=pubUsers.get(id),near=u&&pubNear(u),p=sheet(near?u.name:name||'Konvoj-felhasználó',false);
+ pubMsgs.filter(m=>m.from===id).slice(-6).forEach(m=>p.append(el('p',m.name+': '+m.text)));
+ if(!near){p.append(el('p',u?'Még messze van. A nevét és az autóját akkor látod, és akkor tudsz neki írni, ha a közelébe érsz (kb. 600 m).':'Ez a felhasználó most nem látható.'))}
+ else{const svg=carSvg(u.car,u.color);if(svg){const pic=el('div',null,'strcar');pic.innerHTML=svg;p.append(pic)}p.append(el('p','A közeledben van, nagyjából '+kmTxt(Math.max(100,Math.round(dist(pos,u)/100)*100))+'.'),
+  tap('hand','Megbököm',()=>{if(Date.now()-(poked.get(id)||0)<30000){$('status').textContent='Az előbb böktél meg, várj egy kicsit.';return}poked.set(id,Date.now());pubSend(id,'Megbökött téged!')},'main'));
+  const quick=el('div',null,'quick');['Szia!','Menő a verda!','Gyere a parkolóba','Mizu?'].forEach(q=>quick.append(action(q,()=>pubSend(id,q))));p.append(quick);
+  if(rolling())p.append(el('p','Menet közben írni nem lehet, csak a kész üzenetek mennek.'));
+  else{const form=el('form'),input=el('input');input.placeholder='Üzenet neki';input.maxLength=160;input.enterKeyHint='send';form.append(input,el('button','Küldés','main'));
+   form.onsubmit=async e=>{e.preventDefault();if(!rolling()&&await pubSend(id,input.value))input.value=''};p.append(form)}}
+ if(u||name)p.append(action('Letiltom, nem akarom látni',()=>{blocked=[...blocked,id].slice(-200);save('konvoj.blocked',blocked);pubUsers.delete(id);pubMsgs=pubMsgs.filter(m=>m.from!==id);pubDraw();p.hidden=true},'leave'))}
+function renderPublic(){const p=sheet('Mindenki');
+ if(!DB_URL){p.append(el('p','Ehhez hiányzik az adatbázis.'));return}
+ if(!pubOn){const n=el('input');n.placeholder='Beceneved (ezt látják)';n.maxLength=20;n.value=pubName||team?.name||'';const m=el('p');
+  p.append(el('p','Ha bekapcsolod, látod a többi felhasználót, akik szintén bekapcsolták, és ők is látnak téged a térképen.'),
+   el('p','Idegenek is lehetnek köztük. Csak a becenevedet, az autód rajzát és a kb. 300 méterre kerekített helyedet osztjuk meg, a sebességedet nem. Az adat és az üzenet nem titkos, ne írj le semmi személyeset. A mentett Otthonod 300 méteres körzetében rejtve maradsz.'),n,
+   action('Bekapcsolom',()=>{const v=n.value.trim().slice(0,20);if(!v){m.textContent='Írj be egy becenevet.';return}pubName=v;save('konvoj.pubName',v);setPub(true);renderPublic()},'main'),m);return}
+ p.append(el('p',!watching?'Nyomd meg az Indulás gombot, hogy te is látszódj.':invisible()?'Láthatatlan módban vagy, most nem látnak.':atHome()?'Otthon vagy, ezért most rejtve maradsz.':'Látható vagy mint '+pubName+'.'),el('p','Felhasználók a térképen: '+pubUsers.size));
+ const near=[...pubUsers.values()].filter(pubNear);p.append(el('h3','A közeledben'));
+ if(!near.length)p.append(el('p','Most senki sincs a közeledben.'));near.forEach(u=>p.append(action(u.name,()=>renderStranger(u.id),'main')));
+ if(blocked.length)p.append(action(`Letiltások törlése (${blocked.length})`,()=>{blocked=[];save('konvoj.blocked',blocked);renderPublic()}));
+ p.append(action('Kikapcsolom',()=>{setPub(false);renderPublic()},'leave'))}
+setInterval(pubTick,5000);pubTick();
 </script></body></html>
