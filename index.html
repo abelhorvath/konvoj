@@ -152,10 +152,31 @@ body.drive #alert{top:auto;left:112px;right:90px;bottom:calc(var(--pb) + 210px)}
 body.tripon.tripon.tripon #speed,body.tripon.tripon.tripon #status{bottom:calc(var(--pb) + 196px)}body.drive #status{display:none}
 body.tripon.tripon.tripon #card{bottom:calc(var(--pb) + 196px)}
 body.drive #game .maplibregl-ctrl-bottom-right,body.drive .leaflet-bottom{bottom:calc(var(--pb) + 184px)}
-#splash{position:fixed;z-index:3000;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0b0d17;pointer-events:none;animation:bye .45s 1.4s forwards}
-#splash img{width:150px;height:150px;border-radius:34px;box-shadow:0 0 50px var(--b);animation:pop .8s cubic-bezier(.2,1.6,.4,1)}#splash b{margin-top:22px;font-size:34px;letter-spacing:8px;animation:rise .8s .25s both}
-#splash i{width:170px;height:4px;margin-top:14px;border-radius:2px;background:linear-gradient(90deg,transparent,var(--a),var(--b),transparent);animation:streak .9s .35s both}
-@keyframes pop{from{transform:scale(.3) rotate(-12deg);opacity:0}}@keyframes rise{from{transform:translateY(18px);opacity:0}}@keyframes streak{from{transform:translateX(-220px);opacity:0}}@keyframes bye{to{opacity:0;visibility:hidden}}
+#splash{position:fixed;z-index:3000;inset:0;overflow:hidden;pointer-events:none;background:radial-gradient(circle at 50% 46%,#1d1440,#05060c 70%);animation:bye .45s 2.25s cubic-bezier(.6,0,.9,.4) forwards}
+#splash .stage{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;animation:quake .45s .55s linear}
+#splash .warp{position:absolute;left:50%;top:46%}
+#splash .warp s{position:absolute;left:0;top:-1.5px;width:var(--w);height:3px;border-radius:3px;background:linear-gradient(90deg,transparent,var(--c));transform-origin:0 50%;opacity:0;animation:warp var(--t) var(--d) cubic-bezier(.5,0,1,.6) infinite}
+#splash .logo{position:relative;width:170px;height:170px;animation:slam .6s both}
+#splash .logo img{display:block;width:100%;height:100%;border-radius:38px;animation:glow .9s .55s both}
+#splash .logo u{position:absolute;inset:0;border-radius:38px;border:3px solid var(--b);opacity:0;animation:shock .75s .55s ease-out}
+#splash .logo u+u{border-color:#fff;animation-delay:.72s}
+#splash .name{display:flex;margin-top:28px;font-size:48px;font-weight:900;font-style:italic;color:#fff;text-shadow:3px 0 var(--a),-3px 0 var(--b),0 0 24px var(--b)}
+#splash .name b{padding:0 3px;animation:fly .38s calc(.72s + var(--n)*.07s) cubic-bezier(.2,1.5,.4,1) both}
+#splash .name b:nth-child(odd){--x:-60vw}
+#splash .line{width:250px;height:6px;margin-top:14px;border-radius:3px;transform:skewX(-35deg);background:linear-gradient(90deg,transparent,var(--a),#fff,var(--b),transparent);animation:streak .5s 1.2s cubic-bezier(.1,.9,.2,1) both}
+#splash .flash{position:absolute;inset:0;background:#fff;opacity:0;animation:flash .5s .54s ease-out}
+@keyframes bye{to{opacity:0;transform:scale(2.2);visibility:hidden}}
+@keyframes warp{0%{transform:rotate(var(--r)) translateX(40px) scaleX(.1);opacity:0}30%{opacity:1}100%{transform:rotate(var(--r)) translateX(75vmax) scaleX(1.6);opacity:.9}}
+@keyframes slam{0%{transform:scale(7) rotate(-25deg);opacity:0;filter:blur(18px)}60%{opacity:1}92%{transform:scale(.82) rotate(3deg);filter:blur(0);animation-timing-function:ease-out}100%{transform:none}}
+@keyframes glow{0%{box-shadow:0 0 120px 40px var(--b)}100%{box-shadow:0 0 45px 4px var(--b)}}
+@keyframes shock{0%{transform:scale(1);opacity:1}100%{transform:scale(4.5);opacity:0}}
+@keyframes quake{0%,100%{transform:none}15%{transform:translate(-14px,9px)}30%{transform:translate(12px,-10px)}45%{transform:translate(-9px,-6px)}60%{transform:translate(7px,6px)}80%{transform:translate(-3px,2px)}}
+@keyframes fly{from{transform:translateX(var(--x,60vw)) skewX(-40deg);opacity:0}to{transform:none;opacity:1}}
+@keyframes streak{from{transform:translateX(-100vw) skewX(-35deg)}to{transform:skewX(-35deg)}}
+@keyframes flash{0%{opacity:0}8%{opacity:.6}100%{opacity:0}}
+@media(prefers-reduced-motion:reduce){#splash .warp,#splash .flash,#splash u{display:none}#splash .stage,#splash .logo,#splash .name b,#splash .line{animation:none}#splash{animation-name:fade}}
+@keyframes fade{to{opacity:0;visibility:hidden}}
+
 @media (orientation:landscape) and (max-height:600px){
  #dock,#drivebar,#trip{left:auto;right:env(safe-area-inset-right);width:340px}
  #search{left:calc(12px + env(safe-area-inset-left));right:auto;width:340px}#sug{left:calc(12px + env(safe-area-inset-left));right:auto;width:340px;max-height:60vh}
@@ -177,7 +198,7 @@ body.ready #cancel{display:block}body.driving:not(.ready) #gorow{display:none}
 .gcluster{box-sizing:border-box;min-width:21px;height:21px;padding:0 4px;border-radius:11px;background:#101114d9;border:1.5px solid var(--l);color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center}
 .pin.cam{line-height:17px;border-width:1.5px;box-shadow:none}.pin.cam svg.ic{width:12px;height:12px}
 </style></head><body>
-<div id="splash"><img src="icon.png?v=4" alt=""><b>KONVOJ</b><i></i></div>
+<div id="splash"><div class="warp"></div><div class="stage"><div class="logo"><u></u><u></u><img src="icon.png?v=4" alt=""></div><div class="name"><b style="--n:0">K</b><b style="--n:1">O</b><b style="--n:2">N</b><b style="--n:3">V</b><b style="--n:4">O</b><b style="--n:5">J</b></div><div class="line"></div></div><div class="flash"></div></div>
 <div id="map"></div>
 <div id="game" hidden></div>
 <div id="panel" hidden></div>
@@ -200,7 +221,7 @@ body.ready #cancel{display:block}body.driving:not(.ready) #gorow{display:none}
 const DB_URL='https://konvoj-f1824-default-rtdb.europe-west1.firebasedatabase.app';
 const $=id=>document.getElementById(id);
 // önfrissítés: ha a szerveren újabb verzió van, azt töltjük be a gyorsítótárazott helyett (a számot a version.txt-vel együtt kell növelni)
-const V=34;
+const V=35;
 fetch('version.txt',{cache:'no-store'}).then(r=>r.ok?r.text():0).then(t=>{const n=parseInt(t);if(n>V&&new URLSearchParams(location.search).get('v')!==String(n))location.replace('?v='+n+location.hash)}).catch(()=>{});
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
@@ -1146,7 +1167,10 @@ $('dExit').onclick=()=>{navigating=false;drive(false);if(dest){document.body.cla
 $('ptt').innerHTML=ic('mic');
 document.querySelectorAll('#navvoice button').forEach(b=>{const on=b.dataset.voice==='1';b.innerHTML=ic(on?'volume':'mute');b.append(el('span',on?'Mondja az utat':'Csak mutassa'))});
 // ---------- Nyitóképernyő ----------
-try{if(sessionStorage.getItem('konvoj.splash'))$('splash').remove();else{sessionStorage.setItem('konvoj.splash','1');setTimeout(()=>$('splash')?.remove(),1900)}}catch(e){$('splash')?.remove()}
+try{if(sessionStorage.getItem('konvoj.splash'))$('splash').remove();else{sessionStorage.setItem('konvoj.splash','1');
+ // sebességcsíkok a középpontból
+ for(let i=0;i<46;i++){const l=document.createElement('s');l.style.cssText=`--r:${i*360/46+Math.random()*7}deg;--w:${60+Math.random()*170}px;--c:${['#fff','var(--a)','var(--b)'][i%3]};--t:${.45+Math.random()*.5}s;--d:${-Math.random()}s`;document.querySelector('#splash .warp').append(l)}
+ setTimeout(()=>$('splash')?.remove(),2750)}}catch(e){$('splash')?.remove()}
 // ---------- Frissítés ----------
 setInterval(()=>{drawTrip();drawFriends();shareProfile();weather();askStill();
  if(wasHidden&&!invisible()){lastSent=0;if(pos&&watching)share()}wasHidden=invisible()},1000);
