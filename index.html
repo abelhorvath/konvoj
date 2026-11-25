@@ -87,10 +87,21 @@ function check(){let near=null;
  const name=near.type==='gate'?'Kapu':'Traffipax';$('alert').style.display='block';$('alert').textContent=`${name} ${Math.round(near.d/10)*10} m`;
  const key=near.lat+','+near.lon;if(Date.now()-(warned.get(key)||0)>120000){warned.set(key,Date.now());beep();
   if(window.speechSynthesis){const u=new SpeechSynthesisUtterance(name+' előtted');u.lang='hu-HU';speechSynthesis.speak(u)}}}
+// Sebesség-simítás: kiszűri a GPS ugrásait
+let track=[],samples=[],smooth=null,lastOk=0;
+function speedKmh(c,t,p){
+ if(t-lastOk>6000){samples=[];smooth=null}
+ let raw=null;
+ if(c.accuracy<=50){
+  if(c.speed!=null&&c.speed>=0)raw=c.speed;
+  if(c.accuracy<=30){track.push({...p,t});track=track.filter(x=>t-x.t<=5000);
+   const a=track[0];if(raw==null&&t-a.t>=3000){const d=dist(a,p);raw=d<c.accuracy*.5?0:d/((t-a.t)/1000)}}}
+ if(raw!=null){lastOk=t;samples.push(raw);if(samples.length>3)samples.shift();
+  const m=[...samples].sort((x,y)=>x-y)[Math.floor(samples.length/2)];
+  smooth=m<.9?0:smooth==null?m:smooth+.5*(m-smooth)}
+ return smooth==null?null:Math.round(smooth*3.6)}
 function update(g){document.body.classList.add('driving');const c=g.coords,t=g.timestamp;pos={lat:c.latitude,lon:c.longitude};
- let v=c.speed;
- if((v==null||v<0)&&last&&t>last.t&&c.accuracy<30)v=dist(last,pos)/((t-last.t)/1000);
- const kmh=v==null||v<0?null:Math.round(v*3.6);
+ const kmh=speedKmh(c,t,pos);
  if(kmh>5){if(c.heading!=null&&!isNaN(c.heading))heading=c.heading;else if(last&&dist(last,pos)>5)heading=bearing(last,pos)}
  last={...pos,t};
  $('kmh').textContent=kmh??'–';$('speed').classList.toggle('over',limit>0&&kmh>limit);
@@ -184,5 +195,5 @@ map.on('contextmenu',e=>{if(!picking)setDest({lat:e.latlng.lat,lon:e.latlng.lng}
 map.on('click',e=>{if(!picking||!team)return;picking=false;const p={lat:e.latlng.lat,lon:e.latlng.lng};
  fetch(url('meet'),{method:'PUT',body:JSON.stringify(p)}).then(r=>{if(!r.ok)throw 0;showMeet(p);$('status').textContent='Találkozópont beállítva.'}).catch(()=>$('status').textContent='Nem sikerült menteni.')});
 // álló helyzetben is frissül a megosztott helyed
-setInterval(()=>{if(watching&&pos&&!document.hidden){if(last&&Date.now()-last.t>15000)$('kmh').textContent='0';share()}},30000);
+setInterval(()=>{if(watching&&pos&&!document.hidden){if(last&&Date.now()-last.t>15000){$('kmh').textContent='0';samples=[];smooth=null;track=[]}share()}},30000);
 </script></body></html>
