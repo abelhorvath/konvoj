@@ -1,13 +1,26 @@
 <!DOCTYPE html>
 <html lang="hu"><head>
 <meta charset="utf-8">
+<meta name="color-scheme" content="dark">
+<style>html{background:#05060c}</style>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Konvoj">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<link rel="apple-touch-icon" href="icon.png?v=4"><link rel="manifest" href="manifest.json?v=13">
+<link rel="apple-touch-icon" href="icon.png?v=4"><link rel="manifest" href="manifest.json?v=14">
 <title>Konvoj</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:667px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="splash/750x1334.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:2) and (orientation:portrait)" href="splash/828x1792.png">
+<link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:812px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="splash/1125x2436.png">
+<link rel="apple-touch-startup-image" media="(device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="splash/1170x2532.png">
+<link rel="apple-touch-startup-image" media="(device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="splash/1179x2556.png">
+<link rel="apple-touch-startup-image" media="(device-width:402px) and (device-height:874px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="splash/1206x2622.png">
+<link rel="apple-touch-startup-image" media="(device-width:420px) and (device-height:912px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="splash/1260x2736.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="splash/1242x2688.png">
+<link rel="apple-touch-startup-image" media="(device-width:428px) and (device-height:926px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="splash/1284x2778.png">
+<link rel="apple-touch-startup-image" media="(device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="splash/1290x2796.png">
+<link rel="apple-touch-startup-image" media="(device-width:440px) and (device-height:956px) and (-webkit-device-pixel-ratio:3) and (orientation:portrait)" href="splash/1320x2868.png">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" media="print" onload="this.media='all'">
 <style>
 :root{--a:#6d5cff;--b:#d94bff;--l:#b9aeff}
 html,body{margin:0;height:100%;background:#0b0d17;color:#fff;font-family:-apple-system,system-ui,sans-serif}
@@ -37,7 +50,7 @@ button{padding:14px 4px;border:0;border-radius:14px;background:var(--a);color:#f
 .dest div{width:22px;height:22px;margin:-11px 0 0 -11px;background:var(--b);border:3px solid #fff;transform:rotate(45deg);box-shadow:0 0 14px var(--b)}
 .dest{width:0;height:0}
 #dock{position:fixed;z-index:1000;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom))}
-#bar{position:static;display:grid;grid-template-columns:repeat(5,1fr);gap:0;padding:6px 2px;background:#12141cf2;border:1px solid #ffffff1f;border-radius:22px;box-shadow:0 8px 24px #0008}
+#bar{position:static;display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding:6px 2px;background:#12141cf2;border:1px solid #ffffff1f;border-radius:22px;box-shadow:0 8px 24px #0008}
 #bar button{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0;padding:8px 0;background:none;border-radius:16px;color:#e8e8f0;font-size:10.5px;font-weight:600;white-space:nowrap}
 #bar button:active{background:#ffffff1a}
 #bar svg{width:24px;height:24px;fill:none;stroke:var(--l);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -166,6 +179,7 @@ body.drive #game .maplibregl-ctrl-bottom-right,body.drive .leaflet-bottom{bottom
 #splash .name b:nth-child(odd){--x:-60vw}
 #splash .line{width:250px;height:6px;margin-top:14px;border-radius:3px;transform:skewX(-35deg);background:linear-gradient(90deg,transparent,var(--a),#fff,var(--b),transparent);animation:streak .5s 1.2s cubic-bezier(.1,.9,.2,1) both}
 #splash .flash{position:absolute;inset:0;background:#fff;opacity:0;animation:flash .5s .54s ease-out}
+#splash:not(.go),#splash:not(.go) *{animation-play-state:paused!important}
 @keyframes bye{to{opacity:0;transform:scale(2.2);visibility:hidden}}
 @keyframes warp{0%{transform:rotate(var(--r)) translateX(40px) scaleX(.1);opacity:0}30%{opacity:1}100%{transform:rotate(var(--r)) translateX(75vmax) scaleX(1.6);opacity:.9}}
 @keyframes slam{0%{transform:scale(7) rotate(-25deg);opacity:0;filter:blur(18px)}60%{opacity:1}92%{transform:scale(.82) rotate(3deg);filter:blur(0);animation-timing-function:ease-out}100%{transform:none}}
@@ -216,6 +230,14 @@ body.searching #quick{display:flex}#quick{display:none}
 .finfo{margin-top:10px;font-size:15px;line-height:1.7;text-align:center}.finfo button{display:inline-block!important;width:calc(50% - 5px)!important;margin-right:5px}
 </style></head><body>
 <div id="splash"><div class="warp"></div><div class="stage"><div class="logo"><u></u><u></u><img src="icon.png?v=4" alt=""></div><div class="name"><b style="--n:0">K</b><b style="--n:1">O</b><b style="--n:2">N</b><b style="--n:3">V</b><b style="--n:4">O</b><b style="--n:5">J</b></div><div class="line"></div></div><div class="flash"></div></div>
+<script>
+// nyitóanimáció: akkor indul, amikor a képernyő már tényleg rajzol
+(()=>{const s=document.getElementById('splash');let on=false;
+ // sebességcsíkok a középpontból
+ for(let i=0;i<46;i++){const l=document.createElement('s');l.style.cssText=`--r:${i*360/46+Math.random()*7}deg;--w:${60+Math.random()*170}px;--c:${['#fff','var(--a)','var(--b)'][i%3]};--t:${.45+Math.random()*.5}s;--d:${-Math.random()}s`;s.querySelector('.warp').append(l)}
+ const go=()=>{if(on)return;on=true;s.classList.add('go');setTimeout(()=>s.remove(),2750)};
+ requestAnimationFrame(()=>requestAnimationFrame(go));setTimeout(go,600)})();
+</script>
 <div id="map"></div>
 <div id="game" hidden></div>
 <div id="panel" hidden></div>
@@ -231,14 +253,14 @@ body.searching #quick{display:flex}#quick{display:none}
 <div id="alert" class="box"></div>
 <div id="speed" class="box"><b id="kmh">–</b>km/h<small id="dir"></small></div>
 <div id="status" class="box">Nyomd meg az Indulás gombot.</div>
-<div id="dock"><div id="navvoice"><button type="button" data-voice="1">🔊 Mondja az utat</button><button type="button" data-voice="0">🔇 Csak mutassa</button></div><div id="gorow"><button id="cancel" type="button">✕ Mégse</button><button id="go">Indulás</button></div><div id="bar"><button id="report"><svg viewBox="0 0 24 24"><path d="M12 21s-8-6-8-12a8 8 0 0116 0c0 6-8 12-8 12zM12 6v6M9 9h6"/></svg><span>Jelentés</span></button><button id="meet"><svg viewBox="0 0 24 24"><path d="M6 21V4h12l-3 4 3 4H6"/></svg><span>Találka</span></button><button id="team"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-8 12-8 12 0M16 5a3.5 3.5 0 010 7M18 14c2 1 3 3 3 6"/></svg><span>Csapat</span></button><button id="chat"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H10l-5 4v-4H4z"/></svg><span>Üzenet</span></button><button id="more"><svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg><span>Több</span></button></div></div>
+<div id="dock"><div id="navvoice"><button type="button" data-voice="1">🔊 Mondja az utat</button><button type="button" data-voice="0">🔇 Csak mutassa</button></div><div id="gorow"><button id="cancel" type="button">✕ Mégse</button><button id="go">Indulás</button></div><div id="bar"><button id="report"><svg viewBox="0 0 24 24"><path d="M12 21s-8-6-8-12a8 8 0 0116 0c0 6-8 12-8 12zM12 6v6M9 9h6"/></svg><span>Jelentés</span></button><button id="team"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-8 12-8 12 0M16 5a3.5 3.5 0 010 7M18 14c2 1 3 3 3 6"/></svg><span>Csapat</span></button><button id="chat"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H10l-5 4v-4H4z"/></svg><span>Üzenet</span></button><button id="more"><svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg><span>Több</span></button></div></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 // IDE írd be a saját Firebase Realtime Database címedet, a végén perjel nélkül:
 const DB_URL='https://konvoj-f1824-default-rtdb.europe-west1.firebasedatabase.app';
 const $=id=>document.getElementById(id);
 // önfrissítés: ha a szerveren újabb verzió van, azt töltjük be a gyorsítótárazott helyett (a számot a version.txt-vel együtt kell növelni)
-const V=42;
+const V=43;
 fetch('version.txt',{cache:'no-store'}).then(r=>r.ok?r.text():0).then(t=>{const n=parseInt(t);if(n>V&&new URLSearchParams(location.search).get('v')!==String(n))location.replace('?v='+n+location.hash)}).catch(()=>{});
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
@@ -539,7 +561,7 @@ function showMeet(p){if(!p||!Number.isFinite(p.lat)||!Number.isFinite(p.lon)){if
  const b=document.createElement('button');b.textContent='Törlés';b.onclick=()=>{fetch(url('meet'),{method:'DELETE'});showMeet(null)};
  d.append(document.createElement('br'),a,document.createElement('br'),b);meetMarker.setPopupContent(d)}
 function ready(){if(team&&DB_URL)return true;$('status').textContent='Előbb lépj be egy csapatba.';return false}
-$('meet').onclick=()=>{if(!ready())return;picking=true;$('status').textContent='Koppints a térképre a találkozópont helyén.'};
+function pickMeet(){$('panel').hidden=true;if(!ready())return;picking=true;$('status').textContent='Koppints a térképre a találkozópont helyén.'};
 const COLORS=['#ff5fa2','#a855f7','#2f8cff','#00d97e','#ffd400','#ff3b30','#ff8a00'];
 let fromTeam=false,routeColor=load('konvoj.color',null),shown=[],navigating=false,steps=[],cum=[],turnPts=[],turnDir=0,turnLayer=null,follow=true,dest=null,destMarker=null,route=[],lines=[],lastRoute=0,routeId=0;
 map.on('dragstart',()=>follow=false);
@@ -835,7 +857,7 @@ function stopFirst(p){if(!rolling())return false;p.append(el('p','Menet közben 
 function input(placeholder,type='text',value=''){const i=el('input');i.type=type;i.placeholder=placeholder;i.setAttribute('aria-label',placeholder);if(type==='number'){i.type='text';i.inputMode='decimal'}i.value=value;return i}
 function labeled(text,i){const l=el('label',null,'field');l.append(el('span',text),i);return l}
 function renderMore(){const p=sheet('Több',false),g=el('div',null,'menu');
- [['team','Mindenki',renderPublic],['send','Cél küldése',sendMyDest],['hand','Megállás',renderStop],['pump','Kutak, töltők',renderStations],['star','Kedvencek',renderPlaces],['calendar','Talik',renderEvents],['flag','Törzshelyek',renderSpots],['park','Parkolás',renderPark],['book','Benzinpénz',renderSplit],['send','Mai gurulás',renderDay],['clock','Tankolási napló',renderFuel],['car','Autó-dosszié',renderCar],['coffee','Pihenő',renderRest],['user','Profil',renderProfile],['theme','Kinézet',renderLook],['eye','Láthatatlan',renderHide],['sos','SOS',renderSos]]
+ [['team','Mindenki',renderPublic],['send','Cél küldése',sendMyDest],['flag','Találkozópont',pickMeet],['hand','Megállás',renderStop],['pump','Kutak, töltők',renderStations],['star','Kedvencek',renderPlaces],['calendar','Talik',renderEvents],['flag','Törzshelyek',renderSpots],['park','Parkolás',renderPark],['book','Benzinpénz',renderSplit],['send','Mai gurulás',renderDay],['clock','Tankolási napló',renderFuel],['car','Autó-dosszié',renderCar],['coffee','Pihenő',renderRest],['user','Profil',renderProfile],['theme','Kinézet',renderLook],['eye','Láthatatlan',renderHide],['sos','SOS',renderSos]]
  .forEach(([i,t,fn])=>g.append(tap(i,t,fn)));p.append(g)}
 $('more').onclick=renderMore;
 // ---------- Közös útvonal ----------
@@ -1213,11 +1235,6 @@ $('dExit').onclick=()=>{navigating=false;drive(false);if(dest){document.body.cla
 // ---------- Ikonok a fix gombokon ----------
 $('ptt').innerHTML=ic('mic');
 document.querySelectorAll('#navvoice button').forEach(b=>{const on=b.dataset.voice==='1';b.innerHTML=ic(on?'volume':'mute');b.append(el('span',on?'Mondja az utat':'Csak mutassa'))});
-// ---------- Nyitóképernyő ----------
-try{if(sessionStorage.getItem('konvoj.splash'))$('splash').remove();else{sessionStorage.setItem('konvoj.splash','1');
- // sebességcsíkok a középpontból
- for(let i=0;i<46;i++){const l=document.createElement('s');l.style.cssText=`--r:${i*360/46+Math.random()*7}deg;--w:${60+Math.random()*170}px;--c:${['#fff','var(--a)','var(--b)'][i%3]};--t:${.45+Math.random()*.5}s;--d:${-Math.random()}s`;document.querySelector('#splash .warp').append(l)}
- setTimeout(()=>$('splash')?.remove(),2750)}}catch(e){$('splash')?.remove()}
 // ---------- Frissítés ----------
 setInterval(()=>{drawTrip();drawFriends();shareProfile();weather();askStill();
  if(wasHidden&&!invisible()){lastSent=0;if(pos&&watching)share()}wasHidden=invisible()},1000);
