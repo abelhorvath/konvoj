@@ -238,7 +238,7 @@ body.searching #quick{display:flex}#quick{display:none}
 const DB_URL='https://konvoj-f1824-default-rtdb.europe-west1.firebasedatabase.app';
 const $=id=>document.getElementById(id);
 // önfrissítés: ha a szerveren újabb verzió van, azt töltjük be a gyorsítótárazott helyett (a számot a version.txt-vel együtt kell növelni)
-const V=41;
+const V=42;
 fetch('version.txt',{cache:'no-store'}).then(r=>r.ok?r.text():0).then(t=>{const n=parseInt(t);if(n>V&&new URLSearchParams(location.search).get('v')!==String(n))location.replace('?v='+n+location.hash)}).catch(()=>{});
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
@@ -772,7 +772,11 @@ function mark(key,p,cls,tap,arrow){let o=gmMarks.get(key);
  o.tap=tap;o.seen=true;const at=p.lat+','+p.lon;if(o.at!==at){o.at=at;o.m.setLngLat([p.lon,p.lat])}const e=o.m.getElement();cls.split(' ').forEach(n=>e.classList.add(n));return o}
 function popup(p,content){new maplibregl.Popup().setLngLat([p.lon,p.lat]).setDOMContent(content).addTo(gm)}
 // mérőpontok: kicsinyítve összevonva (darabszám), közepes nagyításnál pötty, közelről kis ikon
-function pinMarks(){const z=gm.getZoom?.()??15,list=points(),tapPin=p=>()=>{if(p.key||mine.includes(p))pinSheet(p);else $('status').textContent=pinText(p)};
+// a döntött térképen a távoli (horizont közeli) jelölések egymásra torlódnának, ezért azokat nem rajzoljuk ki
+function inView(p,z){const c=gm.getCenter?.();if(!c||!gm.project)return true;const h=innerHeight,q=gm.project([p.lon,p.lat]),mpp=40075016*Math.cos(c.lat*Math.PI/180)/(512*2**z);
+ if(gm.getPitch?.()>20&&q.y<h*.34)return false;
+ return q.y<h*1.1&&q.x>-60&&q.x<innerWidth+60&&dist({lat:c.lat,lon:c.lng},p)<mpp*Math.max(h,innerWidth)}
+function pinMarks(){const z=gm.getZoom?.()??15,list=points().filter(p=>inView(p,z)),tapPin=p=>()=>{if(p.key||mine.includes(p))pinSheet(p);else $('status').textContent=pinText(p)};
  const one=(p,size)=>{const o=mark('p'+size+p.lat+','+p.lon+p.type,p,'gpin '+size,tapPin(p)),e=o.m.getElement();if(e.dataset.t!==p.type){e.dataset.t=p.type;e.innerHTML=ic(pinIcon(p.type))}};
  if(z>=11.5){list.forEach(p=>one(p,z>=13.5?'sm':'dot'));return}
  // cella: kb. 56 képpontnyi terület az adott (egészre kerekített) nagyításnál
