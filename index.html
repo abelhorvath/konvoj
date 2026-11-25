@@ -219,7 +219,9 @@ body.searching #quick{display:flex}#quick{display:none}
 #outbtn svg.ic{width:24px;height:24px;color:var(--l)}#outbtn.new::after{content:'';position:absolute;top:-3px;right:-3px;width:12px;height:12px;border-radius:50%;background:#00e08a;box-shadow:0 0 8px #00e08a}
 #sound,#layers{right:12px}
 #sound{top:calc(70px + env(safe-area-inset-top))}#layers{top:calc(124px + env(safe-area-inset-top))}#center{top:calc(178px + env(safe-area-inset-top))}#outbtn{top:calc(232px + env(safe-area-inset-top))}
-#friends,#alert{right:68px}#nav{right:68px}body.drive #nav{right:12px}body.drive #center,body.drive #outbtn{display:none}
+#friends,#alert{right:68px}#nav{right:68px}body.drive #nav{right:12px}
+#compassbtn{position:fixed;z-index:999;right:12px;top:calc(286px + env(safe-area-inset-top));width:46px;height:46px;padding:0;background:#0b0d17e6;border:1px solid var(--a);display:flex;align-items:center;justify-content:center}#compassbtn svg.ic{width:24px;height:24px;color:var(--l)}body.drive #compassbtn{display:none}
+@media (orientation:landscape) and (max-height:600px){#compassbtn{top:64px}}body.drive #center,body.drive #outbtn{display:none}
 @media (orientation:landscape) and (max-height:600px){#sound,#layers,#center,#outbtn{top:10px}#layers{right:12px}#sound{right:66px}#center{right:120px}#outbtn{right:174px}#friends{right:230px}#nav{right:auto}}
 /* neonfény a saját autó alatt */
 .gme{position:absolute}
@@ -260,7 +262,7 @@ body.searching #quick{display:flex}#quick{display:none}
 const DB_URL='https://konvoj-f1824-default-rtdb.europe-west1.firebasedatabase.app';
 const $=id=>document.getElementById(id);
 // önfrissítés: ha a szerveren újabb verzió van, azt töltjük be a gyorsítótárazott helyett (a számot a version.txt-vel együtt kell növelni)
-const V=44;
+const V=45;
 fetch('version.txt',{cache:'no-store'}).then(r=>r.ok?r.text():0).then(t=>{const n=parseInt(t);if(n>V&&new URLSearchParams(location.search).get('v')!==String(n))location.replace('?v='+n+location.hash)}).catch(()=>{});
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
@@ -319,7 +321,7 @@ const carSvg=(shape,color)=>SHAPES[shape]?`<svg viewBox="0 0 40 40" class="carsv
 let profile=load('konvoj.profile',{car:'arrow',color:'#ff5fa2',ride:'',photo:''});
 // ---------- Állapotok ----------
 let via=[],alts=[],altIdx=0,routeInfo=null,addingStop=false,destWeather=null,found=[];
-let compassPref=load('konvoj.compass2',true)!==false,driveOn=load('konvoj.driveOn',true)!==false;
+let driveOn=load('konvoj.driveOn',true)!==false;
 let hideUntil=load('konvoj.hide',0),sosAt=load('konvoj.sos',0);
 const invisible=()=>hideUntil===-1||Date.now()<hideUntil;
 const sosOn=()=>Date.now()-sosAt<1800000;
@@ -397,13 +399,12 @@ function onTurn(e){let h=null;
  compass=compass==null?h:(compass+.35*((h-compass+540)%360-180)+360)%360;
  if(Date.now()-dirAt<100)return;dirAt=Date.now();showDir()}
 // iPhone-on csak gombnyomásra kérhető engedély
-function startCompass(){if(compassOn||!window.DeviceOrientationEvent||(typeof DeviceOrientationEvent.requestPermission==='function'&&!compassPref))return;compassOn=true;
+// magától soha nem ugrik fel az engedélykérés, csak az iránytű gombra koppintva
+function startCompass(tapped){if(compassOn||!window.DeviceOrientationEvent||(typeof DeviceOrientationEvent.requestPermission==='function'&&!tapped))return;compassOn=true;
  const listen=()=>{addEventListener('deviceorientation',onTurn);addEventListener('deviceorientationabsolute',onTurn)};
  const ask=DeviceOrientationEvent.requestPermission;
  if(typeof ask!=='function'){listen();return}
- ask.call(DeviceOrientationEvent).then(r=>{if(r==='granted')listen();else{compassOn=false;$('status').textContent='Iránytű engedély nélkül az ikon csak menet közben fordul.'}}).catch(()=>compassOn=false)}
-// megnyitásonként egyszer, az első koppintásra kérjük az engedélyt, így útvonal előtt már nem ugrik fel
-addEventListener('click',()=>startCompass(),{once:true,capture:true});
+ ask.call(DeviceOrientationEvent).then(r=>{if(r==='granted'){listen();$('compassbtn')?.remove()}else{compassOn=false;$('status').textContent='Iránytű engedély nélkül az ikon csak menet közben fordul.'}}).catch(()=>compassOn=false)}
 // Sebesség-simítás: kiszűri a GPS ugrásait
 let track=[],samples=[],smooth=null,lastOk=0;
 function speedKmh(c,t,p){
@@ -1074,9 +1075,7 @@ function applyTheme(redraw){const t=theme(),r=document.documentElement.style;r.s
 function renderLook(){const p=sheet('Kinézet');p.append(el('h3','Téma'));
  for(const[id,t]of Object.entries(THEMES)){const b=action(t.label+(id===themeId?' ✓':''),()=>{themeId=id;save('konvoj.theme',id);applyTheme(true);renderLook()},id===themeId?'sel':'');b.style.borderLeft=`14px solid ${t.a}`;p.append(b)}
  p.append(el('p','A térkép színei a „Neon 3D” nézetben váltanak a témával.'),el('h3','Beállítások'),
- action('Vezetés mód induláskor: '+(driveOn?'BE ✓':'KI'),()=>{driveOn=!driveOn;save('konvoj.driveOn',driveOn);renderLook()},driveOn?'sel':''));
- if(typeof window.DeviceOrientationEvent?.requestPermission==='function')p.append(action('Ikon forgatása álló helyzetben: '+(compassPref?'BE ✓':'KI'),()=>{compassPref=!compassPref;save('konvoj.compass2',compassPref);if(compassPref)startCompass();renderLook()},compassPref?'sel':''),
-  el('p','Bekapcsolva az iPhone megnyitásonként egyszer, az első koppintáskor engedélyt kér: nyomj az Engedélyezésre. Ezt az app nem tudja megjegyeztetni. Kikapcsolva az ikon csak menet közben fordul.'))}
+ action('Vezetés mód induláskor: '+(driveOn?'BE ✓':'KI'),()=>{driveOn=!driveOn;save('konvoj.driveOn',driveOn);renderLook()},driveOn?'sel':''));}
 // ---------- Profil és autó ikon ----------
 function saveProfile(){save('konvoj.profile',profile);if(team)put('x/prof/'+team.id,{car:profile.car,color:profile.color,ride:cut(profile.ride,30),photo:profile.photo||''})}
 let profFor='';
@@ -1251,6 +1250,9 @@ if($('status').textContent==='Nyomd meg az Indulás gombot.')$('status').textCon
 $('q').addEventListener('focus',()=>document.body.classList.add('searching'));
 $('q').addEventListener('blur',()=>setTimeout(()=>{if(document.activeElement!==$('q'))document.body.classList.remove('searching')},350));
 $('quick').addEventListener('click',()=>$('q').blur());
+// iPhone: álló helyzetben az ikon forgatásához a rendszer megnyitásonként engedélyt kér, ezért ez külön gomb
+if(typeof window.DeviceOrientationEvent?.requestPermission==='function'){const b=action('',()=>startCompass(true));b.id='compassbtn';
+ b.innerHTML='<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>';b.setAttribute('aria-label','Iránytű bekapcsolása');document.body.append(b)}
 // ---------- Fotók: külön ágon, hogy az 5 másodperces frissítést ne lassítsák ----------
 const media=path=>`${DB_URL}/groups/p${team.code.slice(1)}/${path}.json`;
 const okPic=s=>typeof s==='string'&&s.startsWith('data:image/jpeg;base64,')&&s.length<200000;
