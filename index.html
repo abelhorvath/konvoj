@@ -60,6 +60,7 @@ const $=id=>document.getElementById(id);
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const map=L.map('map',{zoomControl:false,tapHold:true}).setView([47.955,22.323],13);
+map.attributionControl.setPrefix(false);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
 const icon=t=>L.divIcon({className:'pin',html:t==='gate'?'🚧':'📸',iconSize:[30,30]});
 let mine=load('konvoj.pins',[]),osm=[],pos=null,last=null,heading=null,limit=load('konvoj.limit',0),lastFetch=null,fetching=false,audio=null,watching=false;
