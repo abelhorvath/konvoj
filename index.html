@@ -168,6 +168,7 @@ body.drive #game .maplibregl-ctrl-bottom-right,body.drive .leaflet-bottom{bottom
  #card,body.ready #card,body.drive #card{left:370px;right:360px;min-width:240px;bottom:90px!important}
  #bar button{padding:4px 0}#go{padding:10px}#navvoice button{padding:7px 4px}
 }
+#status:empty{display:none}
 </style></head><body>
 <div id="splash"><img src="icon.png?v=4" alt=""><b>KONVOJ</b><i></i></div>
 <div id="map"></div>
@@ -192,7 +193,7 @@ body.drive #game .maplibregl-ctrl-bottom-right,body.drive .leaflet-bottom{bottom
 const DB_URL='https://konvoj-f1824-default-rtdb.europe-west1.firebasedatabase.app';
 const $=id=>document.getElementById(id);
 // önfrissítés: ha a szerveren újabb verzió van, azt töltjük be a gyorsítótárazott helyett (a számot a version.txt-vel együtt kell növelni)
-const V=30;
+const V=31;
 fetch('version.txt',{cache:'no-store'}).then(r=>r.ok?r.text():0).then(t=>{const n=parseInt(t);if(n>V&&new URLSearchParams(location.search).get('v')!==String(n))location.replace('?v='+n+location.hash)}).catch(()=>{});
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
@@ -351,6 +352,7 @@ function update(g){document.body.classList.add('driving');const c=g.coords,t=g.t
  if(kmh>5){if(c.heading!=null&&!isNaN(c.heading))heading=c.heading;else if(last&&dist(last,pos)>5)heading=bearing(last,pos)}
  last={...pos,t};
  $('kmh').textContent=kmh??'–';
+ if($('status').textContent==='GPS keresése…')$('status').textContent='';
  tripStep(kmh??0,c.accuracy,t);
  if(!me){me=L.marker([pos.lat,pos.lon],{icon:L.divIcon({className:'arrow',html:'<div></div>',iconSize:null}),zIndexOffset:1000}).addTo(map);map.setView([pos.lat,pos.lon],17)}
  else{me.setLatLng([pos.lat,pos.lon]);if(follow)map.panTo([pos.lat,pos.lon])}
@@ -626,22 +628,24 @@ const routeLayers=c=>{const w=(a,b)=>['interpolate',['exponential',1.5],['zoom']
   {id:'route-flow',type:'line',source:'route',layout:{'line-join':'round'},paint:{'line-color':'#ffffff','line-width':w(3,10),'line-opacity':0,'line-dasharray':[0,4,3]}},
   {id:'turn',type:'line',source:'turn',layout:l,paint:{'line-color':'#fff','line-width':w(3,9)}}]};
 // 3D épületek
-const blocks=(low,high,opacity)=>({id:'building-3d',type:'fill-extrusion',source:'om','source-layer':'building',minzoom:13.5,paint:{
+const blocks=(low,high,opacity)=>({id:'building-3d',type:'fill-extrusion',source:'om','source-layer':'building',minzoom:13,paint:{
  'fill-extrusion-color':['interpolate',['linear'],['coalesce',['get','render_height'],6],0,low,30,high],
- 'fill-extrusion-height':['*',['coalesce',['get','render_height'],6],1.6],
- 'fill-extrusion-base':['*',['coalesce',['get','render_min_height'],0],1.6],'fill-extrusion-opacity':opacity}});
+ 'fill-extrusion-height':['*',['max',['coalesce',['get','render_height'],7],6],2.4],
+ 'fill-extrusion-base':['*',['coalesce',['get','render_min_height'],0],2.4],'fill-extrusion-vertical-gradient':true,'fill-extrusion-opacity':opacity}});
+// oldalról jövő fény: a falak árnyékoltak, ettől térhatásúak a házak
+const LIGHT={anchor:'viewport',position:[1.3,215,40],intensity:.6,color:'#ffffff'};
 function gameStyle(c){
  const routes={route:{type:'geojson',data:lineData(shown)},turn:{type:'geojson',data:lineData(turnPts)}},om={type:'vector',url:'https://tiles.openfreemap.org/planet'};
  if(c.raster){const sources={...routes};c.raster.forEach((u,i)=>sources['r'+i]={type:'raster',tiles:[u],tileSize:256,maxzoom:c.max,attribution:i?'':c.attr});
   if(c.buildings)sources.om=om;
-  return{version:8,sources,layers:[{id:'bg',type:'background',paint:{'background-color':'#101418'}},...c.raster.map((u,i)=>({id:'r'+i,type:'raster',source:'r'+i,...(i?{}:{paint:{'raster-saturation':.2,'raster-contrast':.1}})})),
-   ...routeLayers(c),...(c.buildings?[blocks('#d8dbe6','#ffffff',.45)]:[])]}}
+  return{version:8,light:LIGHT,sources,layers:[{id:'bg',type:'background',paint:{'background-color':'#101418'}},...c.raster.map((u,i)=>({id:'r'+i,type:'raster',source:'r'+i,...(i?{}:{paint:{'raster-saturation':.2,'raster-contrast':.1}})})),
+   ...routeLayers(c),...(c.buildings?[blocks('#c98f6e','#e9e6df',.96)]:[])]}}
  const w=(a,b)=>['interpolate',['exponential',1.5],['zoom'],10,a,18,b];
  const fill=(id,layer,color,filter)=>({id,type:'fill',source:'om','source-layer':layer,paint:{'fill-color':color},...(filter?{filter}:{})});
  const line=(id,cls,color,width,minzoom=0)=>({id,type:'line',source:'om','source-layer':'transportation',minzoom,filter:['match',['get','class'],cls,true,false],layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':color,'line-width':width}});
  const big=['motorway','trunk','primary'],mid=['secondary','tertiary'],small=['minor','service'];
  const label=(id,layer,size,extra,place)=>({id,type:'symbol',source:'om','source-layer':layer,...extra,layout:{'text-field':['coalesce',['get','name:hu'],['get','name']],'text-font':['Noto Sans Regular'],'text-size':size,...place},paint:{'text-color':c.text,'text-halo-color':c.halo,'text-halo-width':1.5}});
- return{version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+ return{version:8,light:LIGHT,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
   sources:{om,...routes},
   layers:[{id:'bg',type:'background',paint:{'background-color':c.land}},
    fill('green','landcover',c.green,['match',['get','class'],['wood','grass'],true,false]),fill('park','park',c.green),fill('water','water',c.water),
@@ -652,7 +656,7 @@ function gameStyle(c){
    line('rail',['rail'],c.edge,w(.5,3),11),
    ...(c.neon?[{...line('glow-mid',[...mid,...small],c.neon,w(2,26),12),paint:{'line-color':c.neon,'line-width':w(2,26),'line-opacity':.18,'line-blur':8}},
     {...line('glow-big',big,c.major,w(8,60)),paint:{'line-color':c.major,'line-width':w(8,60),'line-opacity':.35,'line-blur':12}}]:[]),
-   ...routeLayers(c),blocks(c.building,c.tall,.85),
+   ...routeLayers(c),blocks(c.building,c.tall,.96),
    label('road-name','transportation_name',12,{minzoom:13},{'symbol-placement':'line'}),
    label('place','place',15,{filter:['match',['get','class'],['city','town','village','suburb','neighbourhood'],true,false]},{})]}}
 const lineData=a=>({type:'Feature',properties:{},geometry:{type:'LineString',coordinates:a.length>1?a.map(p=>[p.lon,p.lat]):[]}});
@@ -664,7 +668,7 @@ function gameFail(){stopGame();$('status').textContent='A 3D térkép nem tölt�
 async function applyGame(){const look=MAPS[mapId][2];gmTheme=look;if(!look){stopGame();return}
  try{await loadLib();if(gmTheme!==look)return;stopGame();$('game').hidden=false;
   const c=pos||{lat:map.getCenter().lat,lon:map.getCenter().lng};
-  const m=gm=new maplibregl.Map({container:'game',style:gameStyle(look),center:[c.lon,c.lat],zoom:pos?15.8:14,pitch:50,maxPitch:65,attributionControl:false});
+  const m=gm=new maplibregl.Map({container:'game',style:gameStyle(look),center:[c.lon,c.lat],zoom:pos?15.8:14,pitch:60,maxPitch:68,attributionControl:false});
   m.addControl(new maplibregl.AttributionControl({compact:true,customAttribution:'OpenFreeMap'}),'bottom-right');
   const timer=setTimeout(()=>{if(gm===m&&!gmReady)gameFail()},45000);
   m.once('load',()=>{clearTimeout(timer);if(gm!==m)return;gmReady=true;camKey='';wasFollow=false;routeRef=null;turnRef=null;
@@ -702,7 +706,7 @@ function gameSync(){if(!gm||!gmReady)return;
  if(turnPts.length){const o=mark('turn',turnPts[turnPts.length-1],'gtip',null,true);o.m.setRotation(turnDir)}
  gmMarks.forEach((o,k)=>{if(!o.seen){o.m.remove();gmMarks.delete(k)}});
  if(follow&&pos){const f=facing(),key=[pos.lat,pos.lon,navigating&&f!=null?Math.round(f/4):'',navigating].join();
-  if(!wasFollow||key!==camKey){camKey=key;gm.easeTo({center:[pos.lon,pos.lat],bearing:navigating?f??gm.getBearing():0,pitch:navigating?62:50,padding:{top:navigating?Math.round(innerHeight*.35):0,bottom:0,left:0,right:0},duration:900,...(wasFollow?{}:{zoom:navigating?16.8:15.8})})}}
+  if(!wasFollow||key!==camKey){camKey=key;gm.easeTo({center:[pos.lon,pos.lat],bearing:navigating?f??gm.getBearing():0,pitch:navigating?66:60,padding:{top:navigating?Math.round(innerHeight*.35):0,bottom:0,left:0,right:0},duration:900,...(wasFollow?{}:{zoom:navigating?16.8:15.8})})}}
  wasFollow=follow&&!!pos}
 function gameFit(){if(!gm||!gmReady||route.length<2)return;const b=new maplibregl.LngLatBounds();route.forEach(p=>b.extend([p.lon,p.lat]));wasFollow=false;
  gm.fitBounds(b,{padding:{top:200,bottom:250,left:50,right:50},pitch:40,bearing:0})}
