@@ -42,8 +42,8 @@ button{padding:14px 4px;border:0;border-radius:14px;background:#6d5cff;color:#ff
 #speed b{font-size:32px;line-height:1}
 #status{bottom:calc(172px + env(safe-area-inset-bottom));border-color:#ffffff1f}
 .leaflet-bottom{bottom:calc(160px + env(safe-area-inset-bottom))}
-body.driving #speed,body.driving #status,body.driving .leaflet-bottom{bottom:calc(98px + env(safe-area-inset-bottom))}
-body.driving #go{display:none}
+body.driving:not(.ready) #speed,body.driving:not(.ready) #status,body.driving:not(.ready) .leaflet-bottom{bottom:calc(98px + env(safe-area-inset-bottom))}
+body.driving:not(.ready) #go{display:none}
 #panel{position:fixed;z-index:1100;left:0;right:0;bottom:0;max-height:75vh;overflow:auto;padding:14px 16px calc(18px + env(safe-area-inset-bottom));background:#12141c;border-radius:24px 24px 0 0;box-shadow:0 -8px 30px #000a}
 #panel[hidden]{display:none}
 #panel .head{display:flex;justify-content:space-between;align-items:center}#panel h2{margin:0}#panel h3{font-size:15px;margin:16px 0 8px}
@@ -125,6 +125,7 @@ function update(g){document.body.classList.add('driving');const c=g.coords,t=g.t
  guide();
  fetchCams();check();share()}
 $('go').onclick=async()=>{
+ document.body.classList.remove('ready');follow=true;if(pos)map.setView([pos.lat,pos.lon],17);
  try{audio=audio||new(window.AudioContext||window.webkitAudioContext)();audio.resume()}catch(e){}
  try{await navigator.wakeLock.request('screen')}catch(e){}
  if(watching)return;
@@ -201,8 +202,8 @@ let follow=true,dest=null,destMarker=null,route=[],lines=[],lastRoute=0,routeId=
 map.on('dragstart',()=>follow=false);
 $('center').onclick=()=>{follow=true;if(pos)map.setView([pos.lat,pos.lon],17)};
 const kmTxt=m=>m<1000?Math.round(m/10)*10+' m':(m/1000).toFixed(1)+' km';
-function clearDest(){routeId++;dest=null;route=[];lines.forEach(l=>map.removeLayer(l));lines=[];if(destMarker)map.removeLayer(destMarker);destMarker=null;$('nav').style.display='none'}
-function setDest(p){clearDest();dest=p;const b=document.createElement('button');b.textContent='Úti cél törlése';b.onclick=()=>{map.closePopup();clearDest()};
+function clearDest(){document.body.classList.remove('ready');routeId++;dest=null;route=[];lines.forEach(l=>map.removeLayer(l));lines=[];if(destMarker)map.removeLayer(destMarker);destMarker=null;$('nav').style.display='none'}
+function setDest(p){clearDest();dest=p;document.body.classList.add('ready');const b=document.createElement('button');b.textContent='Úti cél törlése';b.onclick=()=>{map.closePopup();clearDest()};
  destMarker=L.marker([p.lat,p.lon],{icon:L.divIcon({className:'dest',html:'<div></div>',iconSize:null})}).bindPopup(b).addTo(map);
  if(pos)getRoute(true);else{map.setView([p.lat,p.lon],15);follow=false;$('status').textContent='Útvonalhoz nyomd meg az Indulás gombot.'}}
 async function getRoute(fit){if(!dest||!pos)return;lastRoute=Date.now();const id=++routeId;
