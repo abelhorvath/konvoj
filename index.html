@@ -44,8 +44,19 @@ button{padding:14px 4px;border:0;border-radius:14px;background:#6d5cff;color:#ff
 .leaflet-bottom{bottom:calc(160px + env(safe-area-inset-bottom))}
 body.driving #speed,body.driving #status,body.driving .leaflet-bottom{bottom:calc(98px + env(safe-area-inset-bottom))}
 body.driving #go{display:none}
+#panel{position:fixed;z-index:1100;left:0;right:0;bottom:0;max-height:75vh;overflow:auto;padding:14px 16px calc(18px + env(safe-area-inset-bottom));background:#12141c;border-radius:24px 24px 0 0;box-shadow:0 -8px 30px #000a}
+#panel[hidden]{display:none}
+#panel .head{display:flex;justify-content:space-between;align-items:center}#panel h2{margin:0}#panel h3{font-size:15px;margin:16px 0 8px}
+#panel p{color:#b8b8c8;font-size:14px}
+#panel input{box-sizing:border-box;width:100%;margin-top:10px;padding:13px;font-size:16px;border-radius:14px;border:1px solid #ffffff2a;background:#0b0d17;color:#fff}
+#panel button{display:block;width:100%;margin-top:10px;background:#262a38}
+#panel button.main{background:linear-gradient(90deg,#6d5cff,#d94bff)}#panel button.x{width:40px;margin:0}#panel button.leave{background:none;color:#ff6b6b}
+#panel code{display:block;margin-top:12px;font-size:17px;letter-spacing:1px;word-break:break-all;color:#b9aeff}
+#panel .member{display:block;width:100%;box-sizing:border-box;margin-top:8px;padding:12px;text-align:left;background:#1c1f2b;border-radius:14px}
+#panel .member small{display:block;margin-top:3px;color:#b8b8c8;font-weight:400}#panel .member.sos{background:#7a0f18}
 </style></head><body>
 <div id="map"></div>
+<div id="panel" hidden></div>
 <form id="search"><input id="q" placeholder="Hova mész?" enterkeyhint="search"><button>Keresés</button><button type="button" id="center">◎</button></form>
 <div id="nav" class="box"></div>
 <div id="alert" class="box"></div>
@@ -141,16 +152,36 @@ async function pull(){if(!team||!DB_URL||document.hidden)return;
    let m=pins.get(id);if(!m){m=L.circleMarker([f.lat,f.lon],{radius:10,color:'#fff',fillColor:'#00c27a',fillOpacity:1}).bindPopup('').addTo(friends);pins.set(id,m)}
    m.setLatLng([f.lat,f.lon]);m.setPopupContent(info(f));m.setStyle({fillColor:f.help===true?'#ff2d2d':'#00c27a'});
    if(f.help!==true)helped.delete(id);else if(!helped.has(id)){helped.add(id);beep();$('status').textContent='⚠️ '+String(f.name).slice(0,20)+': gond van! Koppints a piros pontra.'}}
+  members=[...seen].map(id=>all[id]);renderList();
   showMeet(all.meet);
   for(const[id,m]of pins)if(!seen.has(id)){friends.removeLayer(m);pins.delete(id)}}
  catch(e){$('status').textContent='A csapat adatai nem töltődtek be.'}}
-$('team').onclick=()=>{if(!DB_URL){alert('A csapat funkcióhoz előbb be kell állítani az adatbázis címét.');return}
- if(team){if(confirm('Csapatkód: '+team.code+'\n\nKilépsz a csapatból? (Mégse = maradsz)')){fetch(url(team.id),{method:'DELETE'});team=null;needHelp=false;showHelp();showMeet(null);save('konvoj.team',null);friends.clearLayers();pins.clear()}return}
- const name=(prompt('A neved, ahogy a barátaid látják:')||'').trim().slice(0,20);if(!name)return;
- const rnd=()=>Array.from(crypto.getRandomValues(new Uint8Array(10)),b=>b.toString(16).padStart(2,'0')).join('');
- let code=prompt('Írd be a barátodtól kapott csapatkódot, vagy hagyd üresen új csapathoz. A kód birtokában bárki látja a csapat helyzetét.');if(code===null)return;
- code=code.trim()||rnd();if(!/^[a-f0-9]{20}$/.test(code)){alert('Hibás csapatkód.');return}
- team={name,code,id:rnd()};save('konvoj.team',team);prompt('Ezt a kódot küldd el a barátaidnak:',code);lastSent=0;if(pos)share()};
+let members=[];
+const rnd=()=>Array.from(crypto.getRandomValues(new Uint8Array(10)),b=>b.toString(16).padStart(2,'0')).join('');
+function el(tag,text,cls){const e=document.createElement(tag);if(text)e.textContent=text;if(cls)e.className=cls;return e}
+function action(text,fn,cls){const b=el('button',text,cls);b.type='button';b.onclick=fn;return b}
+function join(isNew,nameBox,codeBox){const name=nameBox.value.trim().slice(0,20),code=isNew?rnd():codeBox.value.trim().toLowerCase();
+ if(!name){$('msg').textContent='Írd be a neved.';return}
+ if(!/^[a-f0-9]{20}$/.test(code)){$('msg').textContent='Hibás csapatkód (20 karakter).';return}
+ team={name,code,id:rnd()};save('konvoj.team',team);members=[];lastSent=0;if(pos)share();renderTeam();pull()}
+function leave(){if(!confirm('Biztosan kilépsz a csapatból?'))return;fetch(url(team.id),{method:'DELETE'}).catch(()=>{});
+ team=null;members=[];needHelp=false;showHelp();showMeet(null);save('konvoj.team',null);friends.clearLayers();pins.clear();renderTeam()}
+function renderList(){const box=$('members');if(!box||!team)return;box.replaceChildren();
+ const me_=el('div',null,'member');me_.append(el('b',team.name+' (te)'),el('small',watching&&pos?'Megosztod a helyed':'Nyomd meg az Indulás gombot, hogy lássanak'));box.append(me_);
+ members.forEach(f=>{const age=Math.max(0,Math.round((Date.now()-f.time)/60000));
+  const row=action('',()=>{follow=false;map.setView([f.lat,f.lon],16);$('panel').hidden=true},'member'+(f.help===true?' sos':''));
+  row.append(el('b',String(f.name).slice(0,20)),el('small',[f.help===true?'⚠️ Gond van':f.moving?'Úton van':'Áll',pos?kmTxt(dist(pos,f))+' tőled':'',age?age+' perce':'most'].filter(Boolean).join(' · ')));box.append(row)});
+ $('count').textContent='Résztvevők: '+(members.length+1)}
+function renderTeam(){const p=$('panel');p.replaceChildren();
+ const head=el('div',null,'head');head.append(el('h2','Csapat'),action('✕',()=>p.hidden=true,'x'));p.append(head);
+ if(!DB_URL){p.append(el('p','A csapat funkció még nincs bekapcsolva: hiányzik az adatbázis címe (Firebase).'));return}
+ if(!team){const n=el('input'),c=el('input');n.placeholder='A neved';n.maxLength=20;c.placeholder='Csapatkód (ha kaptál)';c.autocapitalize='off';c.autocomplete='off';
+  const m=el('p');m.id='msg';
+  p.append(el('p','Aki ismeri a csapatkódot, látja a résztvevők helyét. Csak barátnak küldd el.'),n,action('Új csapat létrehozása',()=>join(true,n),'main'),c,action('Csatlakozás kóddal',()=>join(false,n,c)),m);return}
+ const copy=action('Csapatkód másolása',async()=>{try{await navigator.clipboard.writeText(team.code);copy.textContent='Kimásolva ✓'}catch(e){prompt('Csapatkód:',team.code)}},'main');
+ const count=el('h3');count.id='count';const list=el('div');list.id='members';
+ p.append(el('code',team.code),copy,count,list,action('Kilépés a csapatból',leave,'leave'));renderList()}
+$('team').onclick=()=>{$('panel').hidden=false;renderTeam()};
 setInterval(pull,5000);
 function showMeet(p){if(!p||!Number.isFinite(p.lat)||!Number.isFinite(p.lon)){if(meetMarker){map.removeLayer(meetMarker);meetMarker=null}return}
  if(!meetMarker)meetMarker=L.marker([p.lat,p.lon],{icon:L.divIcon({className:'pin',html:'🏁',iconSize:[30,30]})}).bindPopup('').addTo(map);
