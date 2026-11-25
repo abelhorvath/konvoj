@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Konvoj">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="apple-touch-icon" href="icon.png?v=4"><link rel="manifest" href="manifest.json">
 <title>Konvoj</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -62,17 +62,18 @@ body.driving:not(.ready) #go{display:none}
 .leaflet-container .leaflet-control-attribution{background:transparent;color:#ffffff66;font-size:9px}
 .leaflet-container .leaflet-control-attribution a{color:#ffffff66;text-decoration:none}
 /* alsó sáv teljesen a képernyő alján */
-:root{--gap:0px;--pb:max(6px,calc(env(safe-area-inset-bottom) - 12px))}
-/* iPhone főképernyős módban a nézet rövidebb a kijelzőnél, ezt pótoljuk */
-:root.app{--gap:calc(100% - 100vh)}
-#map{bottom:var(--gap)}
-#panel{bottom:var(--gap)}
-#dock{left:0;right:0;bottom:var(--gap)}
+:root{--pb:max(6px,calc(env(safe-area-inset-bottom) - 12px))}
+/* ha a telefon mégis hagy egy csíkot alul, az a sáv folytatásának látsszon */
+html,body{background:#12141c}
+#bar{background:#12141c}
+#map{bottom:0}
+#panel{bottom:0}
+#dock{left:0;right:0;bottom:0}
 #go{width:calc(100% - 20px);margin:0 10px 10px}
 #bar{padding:6px 2px var(--pb);border-width:1px 0 0;border-radius:22px 22px 0 0}
-#speed,#status{bottom:calc(var(--gap) + var(--pb) + 156px)}
+#speed,#status{bottom:calc(var(--pb) + 156px)}
 .leaflet-bottom{bottom:calc(var(--pb) + 144px)}
-body.driving:not(.ready) #speed,body.driving:not(.ready) #status{bottom:calc(var(--gap) + var(--pb) + 82px)}
+body.driving:not(.ready) #speed,body.driving:not(.ready) #status{bottom:calc(var(--pb) + 82px)}
 body.driving:not(.ready) .leaflet-bottom{bottom:calc(var(--pb) + 70px)}
 </style></head><body>
 <div id="map"></div>
@@ -89,7 +90,6 @@ body.driving:not(.ready) .leaflet-bottom{bottom:calc(var(--pb) + 70px)}
 // IDE írd be a saját Firebase Realtime Database címedet, a végén perjel nélkül:
 const DB_URL='https://konvoj-f1824-default-rtdb.europe-west1.firebasedatabase.app';
 const $=id=>document.getElementById(id);
-if(navigator.standalone)document.documentElement.classList.add('app');
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const map=L.map('map',{zoomControl:false,tapHold:true}).setView([47.955,22.323],13);
