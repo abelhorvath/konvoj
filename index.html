@@ -13,7 +13,7 @@ html,body{margin:0;height:100%;background:#0b0d17;color:#fff;font-family:-apple-
 #map{position:fixed;inset:0}
 .box{position:fixed;z-index:1000;background:#0b0d17e6;border:1px solid #6d5cff;border-radius:16px}
 #speed{left:12px;bottom:calc(140px + env(safe-area-inset-bottom));width:100px;padding:10px 0;text-align:center}
-#speed b{font-size:44px;display:block}#speed.over{background:#c1121f}
+#speed b{font-size:44px;display:block}
 #alert{top:calc(12px + env(safe-area-inset-top));left:12px;right:12px;padding:14px;text-align:center;font-size:20px;font-weight:700;background:#c1121f;display:none}
 #status{right:12px;bottom:calc(140px + env(safe-area-inset-bottom));max-width:55%;padding:8px 10px;font-size:12px}
 #bar{position:fixed;z-index:1000;left:8px;right:8px;bottom:calc(20px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
@@ -95,6 +95,13 @@ body.driving:not(.ready) #game .maplibregl-ctrl-bottom-right{bottom:calc(var(--p
 #nav .hint{margin-top:8px;text-align:center;font-weight:700;font-size:16px;color:#7dffa8}
 .tip div{width:26px;height:24px;margin:-12px 0 0 -13px;background:#fff;clip-path:polygon(50% 0,100% 100%,0 100%);filter:drop-shadow(0 0 3px #000)}.tip{width:0;height:0}
 .gtip{width:30px;height:28px}.gtip div{width:100%;height:100%;background:#fff;clip-path:polygon(50% 0,100% 100%,0 100%)}
+#bar button.new{position:relative}#bar button.new::after{content:'';position:absolute;top:4px;right:calc(50% - 20px);width:10px;height:10px;border-radius:50%;background:#ff2d55}
+#panel .swatches{display:flex;flex-wrap:wrap;gap:10px}#panel .swatches button{width:42px;height:42px;margin:0;border-radius:50%;border:3px solid #ffffff30}#panel .swatches button.sel{border:4px solid #fff}
+#msgs{max-height:30vh;overflow:auto;margin-top:6px}#msgs div{margin-top:6px;padding:8px 12px;border-radius:14px;background:#1c1f2b;overflow-wrap:anywhere}#msgs div.own{background:#3b2f8f}#msgs small{display:block;color:#b8b8c8;font-size:11px}
+#panel .quick{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}#panel .quick button{margin:0}
+.glabel{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:3px;padding:1px 7px;border-radius:8px;background:#101114e0;color:#fff;font-size:11px;font-weight:700;white-space:nowrap}
+.leaflet-tooltip.flabel{background:#101114e0;border:0;color:#fff;font-weight:700;font-size:11px}.leaflet-tooltip.flabel::before{display:none}
+#alert{right:68px;padding:11px 8px;font-size:18px}
 </style></head><body>
 <div id="map"></div>
 <div id="game" hidden></div>
@@ -103,16 +110,16 @@ body.driving:not(.ready) #game .maplibregl-ctrl-bottom-right{bottom:calc(var(--p
 <button id="layers" type="button" aria-label="Térkép választása"><svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5"/></svg></button>
 <div id="nav" class="box"></div>
 <div id="alert" class="box"></div>
-<div id="speed" class="box"><b id="kmh">–</b>km/h<div id="lim"></div></div>
+<div id="speed" class="box"><b id="kmh">–</b>km/h</div>
 <div id="status" class="box">Nyomd meg az Indulás gombot.</div>
-<div id="dock"><button id="go">Indulás</button><div id="bar"><button id="addCam"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span>Trafi</span></button><button id="addGate"><svg viewBox="0 0 24 24"><path d="M4 21V5h16v16M4 9h16M9 9v3M15 9v3"/></svg><span>Kapu</span></button><button id="setLim"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg><span>Limit</span></button><button id="meet"><svg viewBox="0 0 24 24"><path d="M6 21V4h12l-3 4 3 4H6"/></svg><span>Találka</span></button><button id="team"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-8 12-8 12 0M16 5a3.5 3.5 0 010 7M18 14c2 1 3 3 3 6"/></svg><span>Csapat</span></button><button id="help"><svg viewBox="0 0 24 24"><path d="M12 3l10 18H2zM12 10v5M12 18v.5"/></svg><span>Gond van</span></button></div></div>
+<div id="dock"><button id="go">Indulás</button><div id="bar"><button id="addCam"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span>Trafi</span></button><button id="addGate"><svg viewBox="0 0 24 24"><path d="M4 21V5h16v16M4 9h16M9 9v3M15 9v3"/></svg><span>Kapu</span></button><button id="meet"><svg viewBox="0 0 24 24"><path d="M6 21V4h12l-3 4 3 4H6"/></svg><span>Találka</span></button><button id="team"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-8 12-8 12 0M16 5a3.5 3.5 0 010 7M18 14c2 1 3 3 3 6"/></svg><span>Csapat</span></button><button id="chat"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H10l-5 4v-4H4z"/></svg><span>Üzenet</span></button><button id="help"><svg viewBox="0 0 24 24"><path d="M12 3l10 18H2zM12 10v5M12 18v.5"/></svg><span>Gond van</span></button></div></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 // IDE írd be a saját Firebase Realtime Database címedet, a végén perjel nélkül:
 const DB_URL='https://konvoj-f1824-default-rtdb.europe-west1.firebasedatabase.app';
 const $=id=>document.getElementById(id);
 // önfrissítés: ha a szerveren újabb verzió van, azt töltjük be a gyorsítótárazott helyett (a számot a version.txt-vel együtt kell növelni)
-const V=16;
+const V=17;
 fetch('version.txt',{cache:'no-store'}).then(r=>r.ok?r.text():0).then(t=>{const n=parseInt(t);if(n>V&&new URLSearchParams(location.search).get('v')!==String(n))location.replace('?v='+n)}).catch(()=>{});
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
@@ -133,15 +140,22 @@ const MAPS={
 let mapId='dark',tiles=[];
 // a játékstílusú térkép alatt mindig ott a sima sötét térkép, ha a 3D nem tölt be
 function setMap(id){mapId=MAPS[id]?id:'game';const base=MAPS[mapId][1]||MAPS.dark[1];tiles.forEach(l=>map.removeLayer(l));tiles=base();tiles.forEach(l=>l.addTo(map))}
-const icon=t=>L.divIcon({className:'pin',html:t==='gate'?'🚧':'📸',iconSize:[30,30]});
-let mine=load('konvoj.pins',[]),osm=[],pos=null,last=null,heading=null,limit=load('konvoj.limit',0),lastFetch=null,fetching=false,audio=null,watching=false;
+const emoji=t=>t==='gate'?'🚧':'📸';
+const icon=t=>L.divIcon({className:'pin',html:emoji(t),iconSize:[30,30]});
+let veda=[],shared=[];
+let mine=load('konvoj.pins',[]),osm=[],pos=null,last=null,heading=null,lastFetch=null,fetching=false,audio=null,watching=false;
 const warned=new Map(),layer=L.layerGroup().addTo(map);let me=null;
 function dist(a,b){const r=Math.PI/180,x=(b.lat-a.lat)*r,y=(b.lon-a.lon)*r;const h=Math.sin(x/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(y/2)**2;return 12742000*Math.asin(Math.sqrt(h))}
 function bearing(a,b){const r=Math.PI/180,y=Math.sin((b.lon-a.lon)*r)*Math.cos(b.lat*r),x=Math.cos(a.lat*r)*Math.sin(b.lat*r)-Math.sin(a.lat*r)*Math.cos(b.lat*r)*Math.cos((b.lon-a.lon)*r);return(Math.atan2(y,x)/r+360)%360}
+// minden jelölés egy helyen: VÉDA lista + térképadat + csapat + saját
+function points(){return[...veda,...osm.filter(p=>!veda.some(v=>dist(v,p)<60)),...shared,...mine]}
+function pinText(p){return p.type==='veda'?`Fix VÉDA mérőpont${p.road?', '+p.road+'. út':''} (police.hu lista)`:p.key?`${p.type==='gate'?'Kapu':'Traffipax'}, jelölte: ${p.by}`:mine.includes(p)?'Saját jelölés':'Térképadat (OpenStreetMap)'}
+function removePin(p){if(p.key){fetch(url('pins/'+p.key),{method:'DELETE'}).then(r=>{if(!r.ok)throw 0;shared=shared.filter(x=>x.key!==p.key);draw()}).catch(()=>$('status').textContent='Nem sikerült törölni.')}
+ else{mine.splice(mine.indexOf(p),1);save('konvoj.pins',mine);draw()}}
 function draw(){layer.clearLayers();
- osm.forEach(p=>L.marker([p.lat,p.lon],{icon:icon(p.type)}).bindPopup('Térképadat (OpenStreetMap)').addTo(layer));
- mine.forEach((p,i)=>{const b=document.createElement('button');b.textContent='Törlés';b.onclick=()=>{mine.splice(i,1);save('konvoj.pins',mine);map.closePopup();draw()};
-  L.marker([p.lat,p.lon],{icon:icon(p.type)}).bindPopup(b).addTo(layer)})}
+ points().forEach(p=>{const d=document.createElement('div');d.textContent=pinText(p);
+  if(p.key||mine.includes(p)){const b=document.createElement('button');b.textContent='Törlés';b.onclick=()=>{map.closePopup();removePin(p)};d.append(document.createElement('br'),b)}
+  L.marker([p.lat,p.lon],{icon:icon(p.type)}).bindPopup(d).addTo(layer)})}
 async function fetchCams(){if(fetching||(lastFetch&&dist(lastFetch,pos)<10000))return;fetching=true;
  const a=`(around:30000,${pos.lat},${pos.lon})`;
  const q=`[out:json][timeout:25];(node["highway"="speed_camera"]${a};rel["type"="enforcement"]${a};);out body;node(r:"device");out body;`;
@@ -151,11 +165,11 @@ async function fetchCams(){if(fetching||(lastFetch&&dist(lastFetch,pos)<10000))r
  fetching=false}
 function beep(){if(!audio)return;const o=audio.createOscillator();o.connect(audio.destination);o.frequency.value=880;o.start();o.stop(audio.currentTime+.4)}
 function check(){let near=null;
- [...osm,...mine].forEach(p=>{const d=dist(pos,p);if(d>600)return;
+ points().forEach(p=>{const d=dist(pos,p);if(d>600)return;
   if(heading!=null){const diff=Math.abs((bearing(pos,p)-heading+540)%360-180);if(diff>60&&d>40)return}
   if(!near||d<near.d)near={...p,d}});
  if(!near){$('alert').style.display='none';return}
- const name=near.type==='gate'?'Kapu':'Traffipax';$('alert').style.display='block';$('alert').textContent=`${name} ${Math.round(near.d/10)*10} m`;
+ const name=near.type==='gate'?'Kapu':near.type==='veda'?'VÉDA mérőpont':'Traffipax';$('alert').style.display='block';$('alert').textContent=`${name} ${Math.round(near.d/10)*10} m`;
  const key=near.lat+','+near.lon;if(Date.now()-(warned.get(key)||0)>120000){warned.set(key,Date.now());beep();
   if(window.speechSynthesis){const u=new SpeechSynthesisUtterance(name+' előtted');u.lang='hu-HU';speechSynthesis.speak(u)}}}
 // Sebesség-simítás: kiszűri a GPS ugrásait
@@ -175,7 +189,7 @@ function update(g){document.body.classList.add('driving');const c=g.coords,t=g.t
  const kmh=speedKmh(c,t,pos);
  if(kmh>5){if(c.heading!=null&&!isNaN(c.heading))heading=c.heading;else if(last&&dist(last,pos)>5)heading=bearing(last,pos)}
  last={...pos,t};
- $('kmh').textContent=kmh??'–';$('speed').classList.toggle('over',limit>0&&kmh>limit);
+ $('kmh').textContent=kmh??'–';
  if(!me){me=L.marker([pos.lat,pos.lon],{icon:L.divIcon({className:'arrow',html:'<div></div>',iconSize:null}),zIndexOffset:1000}).addTo(map);map.setView([pos.lat,pos.lon],17)}
  else{me.setLatLng([pos.lat,pos.lon]);if(follow)map.panTo([pos.lat,pos.lon])}
  if(heading!=null&&me.getElement())me.getElement().firstChild.style.transform=`rotate(${heading}deg)`;
@@ -191,11 +205,13 @@ $('go').onclick=async()=>{
  navigator.geolocation.watchPosition(update,e=>{$('status').textContent=e.code===1?'Engedélyezd a helymeghatározást a beállításokban.':'Gyenge GPS-jel.'},{enableHighAccuracy:true,maximumAge:1000})};
 document.addEventListener('visibilitychange',()=>{if(watching&&!document.hidden)navigator.wakeLock?.request('screen').catch(()=>{})});
 function add(type){if(!pos){$('status').textContent='Előbb nyomd meg az Indulás gombot.';return}
- mine.push({lat:pos.lat,lon:pos.lon,type});save('konvoj.pins',mine);warned.set(pos.lat+','+pos.lon,Date.now());draw();$('status').textContent='Megjelölve.'}
+ const p={lat:pos.lat,lon:pos.lon,type};warned.set(pos.lat+','+pos.lon,Date.now());
+ const local=msg=>{mine.push(p);save('konvoj.pins',mine);draw();$('status').textContent=msg};
+ if(!team){local('Megjelölve. Csak te látod, amíg nem vagy csapatban.');return}
+ const key=rnd(),x={...p,by:team.name,time:Date.now()};
+ fetch(url('pins/'+key),{method:'PUT',body:JSON.stringify(x)}).then(r=>{if(!r.ok)throw 0;shared.push({...x,key});draw();$('status').textContent='Megjelölve, a csapat is látja.'}).catch(()=>local('Nem sikerült megosztani, csak nálad mentettem el.'))}
 $('addCam').onclick=()=>add('cam');$('addGate').onclick=()=>add('gate');
-const showLim=()=>$('lim').textContent=limit?'limit: '+limit:'';
-$('setLim').onclick=()=>{const v=prompt('Sebességhatár km/h (0 = ki)',limit);if(v===null)return;limit=Math.max(0,parseInt(v)||0);save('konvoj.limit',limit);showLim()};
-showLim();draw();
+draw();
 let needHelp=false,meetMarker=null,picking=false;const helped=new Set();
 let team=load('konvoj.team',null),lastSent=0,moving=false;
 const friends=L.layerGroup().addTo(map),pins=new Map();
@@ -204,16 +220,21 @@ function share(){const m=(pos&&last&&Number($('kmh').textContent)>5)||false;
  if(!team||!DB_URL||Date.now()-lastSent<5000)return;lastSent=Date.now();moving=m;
  fetch(url(team.id),{method:'PUT',body:JSON.stringify({name:team.name,lat:pos.lat,lon:pos.lon,moving,help:needHelp,time:{'.sv':'timestamp'}})})
   .then(r=>{if(!r.ok)throw 0}).catch(()=>$('status').textContent='A helyed megosztása nem sikerült.')}
-function info(f){const d=document.createElement('div'),age=Math.max(0,Math.round((Date.now()-f.time)/1000));
+function info(f){const d=document.createElement('div'),to=String(f.name).slice(0,20),age=Math.max(0,Math.round((Date.now()-f.time)/1000));
  [String(f.name).slice(0,20),f.help===true?'⚠️ Gond van, megállt vagy lemaradt':'',f.moving?'Úton van':'Áll',pos?(dist(pos,f)/1000).toFixed(1)+' km-re tőled':'',age<60?'Most frissült':Math.round(age/60)+' perce frissült']
- .forEach((t,i)=>{if(!t)return;const e=document.createElement(i?'div':'b');e.textContent=t;d.appendChild(e)});return d}
+ .forEach((t,i)=>{if(!t)return;const e=document.createElement(i?'div':'b');e.textContent=t;d.appendChild(e)});
+ const b=document.createElement('button');b.textContent='Üzenet neki';b.dataset.to=to;d.appendChild(b);return d}
+document.addEventListener('click',e=>{const to=e.target.dataset?.to;if(to)renderChat(to)},true);
 async function pull(){if(!team||!DB_URL||document.hidden)return;
  try{const r=await fetch(url());if(!r.ok)throw 0;const all=await r.json()||{},seen=new Set();
-  for(const[id,f]of Object.entries(all)){if(id==='meet'||id===team.id||!Number.isFinite(f.lat)||!Number.isFinite(f.lon)||Date.now()-f.time>600000)continue;seen.add(id);
-   let m=pins.get(id);if(!m){m=L.circleMarker([f.lat,f.lon],{radius:10,color:'#fff',fillColor:'#00c27a',fillOpacity:1}).bindPopup('').addTo(friends);pins.set(id,m)}
-   m.setLatLng([f.lat,f.lon]);m.setPopupContent(info(f));m.setStyle({fillColor:f.help===true?'#ff2d2d':'#00c27a'});
+  for(const[id,f]of Object.entries(all)){if(['meet','pins','chat'].includes(id)||id===team.id||!Number.isFinite(f.lat)||!Number.isFinite(f.lon)||Date.now()-f.time>600000)continue;seen.add(id);
+   let m=pins.get(id);if(!m){m=L.circleMarker([f.lat,f.lon],{radius:10,color:'#fff',fillColor:'#00c27a',fillOpacity:1}).bindPopup('').bindTooltip(document.createElement('span'),{permanent:true,direction:'bottom',offset:[0,8],className:'flabel'}).addTo(friends);pins.set(id,m)}
+   m.setLatLng([f.lat,f.lon]);m.label=String(f.name).slice(0,20);const tip=document.createElement('span');tip.textContent=m.label;m.setTooltipContent(tip);m.setPopupContent(info(f));m.setStyle({fillColor:f.help===true?'#ff2d2d':'#00c27a'});
    if(f.help!==true)helped.delete(id);else if(!helped.has(id)){helped.add(id);beep();$('status').textContent='⚠️ '+String(f.name).slice(0,20)+': gond van! Koppints a piros pontra.'}}
   members=[...seen].map(id=>all[id]);renderList();
+  const next=Object.entries(all.pins||{}).filter(([,p])=>Number.isFinite(p.lat)&&Number.isFinite(p.lon)).map(([key,p])=>({key,lat:p.lat,lon:p.lon,type:p.type==='gate'?'gate':'cam',by:String(p.by).slice(0,20)}));
+  if(next.map(p=>p.key).join()!==shared.map(p=>p.key).join()){shared=next;draw()}
+  readChat(all.chat||{});
   showMeet(all.meet);
   for(const[id,m]of pins)if(!seen.has(id)){friends.removeLayer(m);pins.delete(id)}}
  catch(e){$('status').textContent='A csapat adatai nem töltődtek be.'}}
@@ -224,9 +245,9 @@ function action(text,fn,cls){const b=el('button',text,cls);b.type='button';b.onc
 function join(isNew,nameBox,codeBox){const name=nameBox.value.trim().slice(0,20),code=isNew?rnd():codeBox.value.trim().toLowerCase();
  if(!name){$('msg').textContent='Írd be a neved.';return}
  if(!/^[a-f0-9]{20}$/.test(code)){$('msg').textContent='Hibás csapatkód (20 karakter).';return}
- team={name,code,id:rnd()};save('konvoj.team',team);members=[];lastSent=0;if(pos)share();renderTeam();pull()}
+ team={name,code,id:rnd()};save('konvoj.team',team);members=[];shared=[];chat=[];seenChat=null;draw();lastSent=0;if(pos)share();renderTeam();pull()}
 function leave(){if(!confirm('Biztosan kilépsz a csapatból?'))return;fetch(url(team.id),{method:'DELETE'}).catch(()=>{});
- team=null;members=[];needHelp=false;showHelp();showMeet(null);save('konvoj.team',null);friends.clearLayers();pins.clear();renderTeam()}
+ team=null;members=[];shared=[];chat=[];seenChat=null;draw();$('chat').classList.remove('new');needHelp=false;showHelp();showMeet(null);save('konvoj.team',null);friends.clearLayers();pins.clear();renderTeam()}
 function renderList(){const box=$('members');if(!box||!team)return;box.replaceChildren();
  const me_=el('div',null,'member');me_.append(el('b',team.name+' (te)'),el('small',watching&&pos?'Megosztod a helyed':'Nyomd meg az Indulás gombot, hogy lássanak'));box.append(me_);
  members.forEach(f=>{const age=Math.max(0,Math.round((Date.now()-f.time)/60000));
@@ -243,9 +264,40 @@ function renderTeam(){const p=$('panel');p.replaceChildren();
  const count=el('h3');count.id='count';const list=el('div');list.id='members';
  p.append(el('code',team.code),copy,count,list,action('Kilépés a csapatból',leave,'leave'));renderList()}
 $('team').onclick=()=>{$('panel').hidden=false;renderTeam()};
+// ---------- Csapatüzenetek ----------
+let chat=[],seenChat=null,replyTo='';
+const QUICK=['Megyek 👍','Várjatok meg','Megálltam','Hol vagy?','Késem pár percet','Ott találkozunk'];
+const rolling=()=>Number($('kmh').textContent)>10;
+function readChat(all){const old=Date.now()-86400000;
+ for(const[k,m]of Object.entries(all))if(m.time<old)fetch(url('chat/'+k),{method:'DELETE'}).catch(()=>{});
+ chat=Object.entries(all).filter(([,m])=>m.time>=old&&typeof m.text==='string').sort((a,b)=>a[1].time-b[1].time).slice(-50).map(([key,m])=>({key,...m}));
+ const fresh=seenChat?chat.filter(m=>!seenChat.has(m.key)&&m.id!==team.id):[];seenChat=new Set(chat.map(m=>m.key));
+ const open=!$('panel').hidden&&$('msgs');
+ if(fresh.length){const m=fresh[fresh.length-1],line=String(m.from).slice(0,20)+': '+m.text.slice(0,200);beep();say(line);
+  if(!open){$('chat').classList.add('new');$('status').textContent='💬 '+line}}
+ renderMsgs()}
+function renderMsgs(){const box=$('msgs');if(!box)return;const key=chat.map(m=>m.key).join();if(box.dataset.key===key)return;box.dataset.key=key;box.replaceChildren();
+ if(!chat.length)box.append(el('p','Még nincs üzenet.'));
+ chat.forEach(m=>{const row=el('div',null,m.id===team.id?'own':'');row.append(el('small',String(m.from).slice(0,20)+' · '+new Date(m.time).toLocaleTimeString('hu-HU',{hour:'2-digit',minute:'2-digit'})),el('span',m.text.slice(0,200)));box.append(row)});box.scrollTop=box.scrollHeight}
+function send(text){text=text.trim().slice(0,200);if(!text||!team)return Promise.resolve(false);
+ return fetch(url('chat'),{method:'POST',body:JSON.stringify({id:team.id,from:team.name,text,time:{'.sv':'timestamp'}})}).then(r=>{if(!r.ok)throw 0;pull();return true}).catch(()=>{$('status').textContent='Az üzenet nem ment el.';return false})}
+function renderChat(to){const p=$('panel');p.replaceChildren();p.hidden=false;$('chat').classList.remove('new');
+ const head=el('div',null,'head');head.append(el('h2','Üzenetek'),action('✕',()=>p.hidden=true,'x'));p.append(head);
+ if(!team){p.append(el('p','Üzenni a csapattagoknak tudsz. Előbb hozz létre egy csapatot, vagy lépj be egybe.'),action('Csapat megnyitása',renderTeam,'main'));return}
+ const list=el('div');list.id='msgs';p.append(list);renderMsgs();
+ const pre=to?'@'+to+' ':'',quick=el('div',null,'quick');QUICK.forEach(q=>quick.append(action(q,()=>send(pre+q))));p.append(quick);
+ if(rolling()){p.append(el('p','Menet közben csak a kész üzenetek küldhetők. Írni megállás után tudsz.'));return}
+ const form=el('form'),input=el('input');input.placeholder='Üzenet a csapatnak';input.maxLength=200;input.value=pre;input.enterKeyHint='send';
+ const btn=el('button','Küldés','main');form.append(input,btn);
+ form.onsubmit=async e=>{e.preventDefault();if(rolling()){renderChat(to);return}if(await send(input.value))input.value=''};p.append(form)}
+$('chat').onclick=()=>renderChat();
+// ha elindulsz, a gépelőmező eltűnik
+setInterval(()=>{if(!$('panel').hidden&&$('msgs')&&rolling()&&$('panel').querySelector('input'))renderChat()},1000);
 function renderMaps(){const p=$('panel');p.replaceChildren();
  const head=el('div',null,'head');head.append(el('h2','Térkép'),action('✕',()=>p.hidden=true,'x'));p.append(head);
- for(const[id,m]of Object.entries(MAPS))p.append(action(m[0]+(id===mapId?' ✓':''),()=>{setMap(id);applyGame();save('konvoj.map',id);p.hidden=true},id===mapId?'sel':''))}
+ for(const[id,m]of Object.entries(MAPS))p.append(action(m[0]+(id===mapId?' ✓':''),()=>{setMap(id);applyGame();save('konvoj.map',id);p.hidden=true},id===mapId?'sel':''));
+ p.append(el('h3','Útvonal színe'));const row=el('div',null,'swatches');
+ [null,...COLORS].forEach(c=>{const b=action(c?'':'A',()=>{setColor(c);renderMaps()},c===routeColor?'sel':'');b.setAttribute('aria-label',c||'Alapszín');if(c)b.style.background=c;row.append(b)});p.append(row)}
 $('layers').onclick=()=>{$('panel').hidden=false;renderMaps()};
 setInterval(pull,5000);
 function showMeet(p){if(!p||!Number.isFinite(p.lat)||!Number.isFinite(p.lon)){if(meetMarker){map.removeLayer(meetMarker);meetMarker=null}return}
@@ -259,11 +311,12 @@ function showHelp(){$('help').querySelector('span').textContent=needHelp?'Rendbe
 function ready(){if(team&&DB_URL)return true;$('status').textContent='Előbb lépj be egy csapatba.';return false}
 $('help').onclick=()=>{if(!ready())return;if(!pos){$('status').textContent='Előbb nyomd meg az Indulás gombot.';return}needHelp=!needHelp;showHelp();lastSent=0;share()};
 $('meet').onclick=()=>{if(!ready())return;picking=true;$('status').textContent='Koppints a térképre a találkozópont helyén.'};
-let navigating=false,steps=[],cum=[],turnPts=[],turnDir=0,turnLayer=null,follow=true,dest=null,destMarker=null,route=[],lines=[],lastRoute=0,routeId=0;
+const COLORS=['#ff5fa2','#a855f7','#2f8cff','#00d97e','#ffd400','#ff3b30','#ff8a00'];
+let routeColor=load('konvoj.color',null),shown=[],navigating=false,steps=[],cum=[],turnPts=[],turnDir=0,turnLayer=null,follow=true,dest=null,destMarker=null,route=[],lines=[],lastRoute=0,routeId=0;
 map.on('dragstart',()=>follow=false);
 $('center').onclick=()=>{follow=true;if(pos)map.setView([pos.lat,pos.lon],17)};
 const kmTxt=m=>m<1000?Math.round(m/10)*10+' m':(m/1000).toFixed(1)+' km';
-function clearDest(){document.body.classList.remove('ready');routeId++;dest=null;route=[];steps=[];showTurn(null);lines.forEach(l=>map.removeLayer(l));lines=[];if(destMarker)map.removeLayer(destMarker);destMarker=null;$('nav').style.display='none'}
+function clearDest(){document.body.classList.remove('ready');routeId++;dest=null;route=[];shown=[];steps=[];showTurn(null);lines.forEach(l=>map.removeLayer(l));lines=[];if(destMarker)map.removeLayer(destMarker);destMarker=null;$('nav').style.display='none'}
 function setDest(p){clearDest();navigating=false;dest=p;document.body.classList.add('ready');const b=document.createElement('button');b.textContent='Úti cél törlése';b.onclick=()=>{map.closePopup();clearDest()};
  destMarker=L.marker([p.lat,p.lon],{icon:L.divIcon({className:'dest',html:'<div></div>',iconSize:null})}).bindPopup(b).addTo(map);
  if(pos)getRoute(true);else{follow=false;map.setView([p.lat,p.lon],15);$('status').textContent='Útvonalhoz nyomd meg az Indulás gombot.'}}
@@ -274,7 +327,7 @@ async function getRoute(fit){if(!dest||!pos)return;lastRoute=Date.now();const id
   cum=[0];for(let i=1;i<route.length;i++)cum.push(cum[i-1]+dist(route[i-1],route[i]));
   const raw=x.legs?.[0]?.steps||[],k=cum[cum.length-1]/(raw.reduce((a,t)=>a+t.distance,0)||1);let at=0;
   steps=raw.map(t=>{const o={...t,at:at*k};at+=t.distance;return o});spoken.clear();lines.forEach(l=>map.removeLayer(l));
-  const ll=route.map(p=>[p.lat,p.lon]);lines=[L.polyline(ll,{color:'#2a0838',weight:13,opacity:.9}).addTo(map),L.polyline(ll,{color:'#d94bff',weight:7,opacity:1}).addTo(map)];
+  shown=route;const ll=route.map(p=>[p.lat,p.lon]);lines=[L.polyline(ll,{color:'#101014',weight:13,opacity:.9}).addTo(map),L.polyline(ll,{color:routeColor||'#d94bff',weight:7,opacity:1}).addTo(map)];
   $('nav').style.display='block';$('nav').textContent=`${kmTxt(x.distance)} · kb. ${Math.max(1,Math.round(x.duration/60))} perc`;
   if(fit){follow=false;map.fitBounds(lines[1].getBounds(),{padding:[60,120]});gameFit()}else if(pos)guide()}
  catch(e){if(id===routeId)$('status').textContent='Az útvonaltervezés most nem sikerült.'}}
@@ -307,9 +360,9 @@ function project(p){const k=Math.cos(p.lat*Math.PI/180);let best={d:Infinity,at:
  return best}
 function pointAt(m){let i=1;while(i<cum.length-1&&cum[i]<m)i++;const a=route[i-1],b=route[i],u=Math.max(0,Math.min(1,(m-cum[i-1])/((cum[i]-cum[i-1])||1)));return{lat:a.lat+(b.lat-a.lat)*u,lon:a.lon+(b.lon-a.lon)*u}}
 // fehér nyíl az útvonalon, ott ahol kanyarodni vagy lehajtani kell
-function showTurn(at){if(turnLayer){map.removeLayer(turnLayer);turnLayer=null}
+function showTurn(at,cur=0){if(turnLayer){map.removeLayer(turnLayer);turnLayer=null}
  if(at==null||route.length<2){turnPts=[];return}
- const from=Math.max(0,at-80),to=Math.min(cum[cum.length-1],at+60);
+ const from=Math.max(0,at-80,cur),to=Math.min(cum[cum.length-1],at+60);
  turnPts=[pointAt(from),...route.filter((p,i)=>cum[i]>from&&cum[i]<to),pointAt(to)];
  const n=turnPts.length;turnDir=bearing(pointAt(Math.max(0,to-12)),turnPts[n-1]);
  const tip=turnPts[n-1];turnLayer=L.layerGroup([L.polyline(turnPts.map(p=>[p.lat,p.lon]),{color:'#fff',weight:7}),
@@ -327,7 +380,7 @@ function renderNav(at){const box=$('nav'),total=cum[cum.length-1],rest=kmTxt(Mat
  row.append(el('div',t.maneuver.type==='arrive'?'🏁':t.maneuver.type.includes('round')||t.maneuver.type==='rotary'?'↻':ARROW[t.maneuver.modifier]||'↑','ico'),info_);box.append(row);
  if(showLanes){const l=el('div',null,'lanes');lanes.forEach(x=>l.append(el('i',(x.indications||['none']).map(n=>ARROW[n]||'↑').join(''),x.valid?'ok':'')));box.append(l)}
  if(hint)box.append(el('div',hint,'hint'));
- showTurn(near?t.at:null);
+ showTurn(near?t.at:null,at);
  if(!navigating||t.maneuver.type==='arrive')return;
  const stage=d<200?'now':d<900?'soon':null;
  if(stage&&!spoken.has(i+stage)){spoken.add(i+stage);say((stage==='soon'?`${Math.round(d/50)*50} méter múlva: `:'')+text+(hint?'. '+hint:''))}}
@@ -335,7 +388,12 @@ function guide(){if(!dest||!pos)return;if(dist(pos,dest)<40){clearDest();$('stat
  if(!route.length){if(Date.now()-lastRoute>=20000)getRoute();return}
  const p=project(pos);
  if(p.d>150){if(Date.now()-lastRoute>=20000)getRoute();return}
+ if(p.d<60)trim(p.at);
  renderNav(p.at)}
+// a már megtett szakasz eltűnik
+function trim(at){shown=[pointAt(at),...route.filter((q,i)=>cum[i]>at)];const ll=shown.map(q=>[q.lat,q.lon]);lines.forEach(l=>l.setLatLngs(ll))}
+function setColor(c){routeColor=c;save('konvoj.color',c);const theme=MAPS[mapId][2];lines[1]?.setStyle({color:c||'#d94bff'});
+ if(gm&&gmReady&&theme){gm.setPaintProperty('route','line-color',c||theme.route);gm.setPaintProperty('route-glow','line-color',c||theme.glow)}}
 $('search').onsubmit=async e=>{e.preventDefault();const q=$('q').value.trim();if(!q)return;$('q').blur();$('status').textContent='Keresés…';
  try{const near=pos?`&viewbox=${pos.lon-1},${pos.lat+1},${pos.lon+1},${pos.lat-1}`:'';
   const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=hu${near}&q=${encodeURIComponent(q)}`);if(!r.ok)throw 0;const[x]=await r.json();
@@ -354,7 +412,7 @@ function gameStyle(c){
  const big=['motorway','trunk','primary'],mid=['secondary','tertiary'],small=['minor','service'];
  const label=(id,layer,size,extra,place)=>({id,type:'symbol',source:'om','source-layer':layer,...extra,layout:{'text-field':['coalesce',['get','name:hu'],['get','name']],'text-font':['Noto Sans Regular'],'text-size':size,...place},paint:{'text-color':c.text,'text-halo-color':c.halo,'text-halo-width':1.5}});
  return{version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
-  sources:{om:src,route:{type:'geojson',data:lineData(route)},turn:{type:'geojson',data:lineData(turnPts)}},
+  sources:{om:src,route:{type:'geojson',data:lineData(shown)},turn:{type:'geojson',data:lineData(turnPts)}},
   layers:[{id:'bg',type:'background',paint:{'background-color':c.land}},
    fill('green','landcover',c.green,['match',['get','class'],['wood','grass'],true,false]),fill('park','park',c.green),fill('water','water',c.water),
    {id:'river',type:'line',source:'om','source-layer':'waterway',paint:{'line-color':c.water,'line-width':w(1,6)}},
@@ -362,8 +420,8 @@ function gameStyle(c){
    line('small-e',small,c.edge,w(1,22),13),line('mid-e',mid,c.edge,w(2.5,34)),line('big-e',big,c.edge,w(4,44)),
    line('path',['track','path'],c.road,w(.3,4),14),line('small',small,c.road,w(.6,18),12),line('mid',mid,c.road,w(1.5,29)),line('big',big,c.major,w(2.5,38)),
    line('rail',['rail'],c.edge,w(.5,3),11),
-   {id:'route-glow',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':c.glow,'line-width':w(9,34),'line-opacity':.45,'line-blur':6}},
-   {id:'route',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':c.route,'line-width':w(4,15)}},
+   {id:'route-glow',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':routeColor||c.glow,'line-width':w(9,34),'line-opacity':.45,'line-blur':6}},
+   {id:'route',type:'line',source:'route',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':routeColor||c.route,'line-width':w(4,15)}},
    {id:'turn',type:'line',source:'turn',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#fff','line-width':w(3,11)}},
    label('road-name','transportation_name',12,{minzoom:13},{'symbol-placement':'line'}),
    label('place','place',15,{filter:['match',['get','class'],['city','town','village','suburb','neighbourhood'],true,false]},{})]}}
@@ -398,14 +456,14 @@ function mark(key,p,cls,tap,arrow){let o=gmMarks.get(key);
  o.tap=tap;o.seen=true;o.m.setLngLat([p.lon,p.lat]);const e=o.m.getElement();cls.split(' ').forEach(n=>e.classList.add(n));return o}
 function popup(p,content){new maplibregl.Popup().setLngLat([p.lon,p.lat]).setDOMContent(content).addTo(gm)}
 function gameSync(){if(!gm||!gmReady)return;
- if(routeRef!==route){routeRef=route;gm.getSource('route').setData(lineData(route))}
+ if(routeRef!==shown){routeRef=shown;gm.getSource('route').setData(lineData(shown))}
  gmMarks.forEach(o=>o.seen=false);
  if(pos){const o=mark('me',pos,'gme',null,true);o.m.setRotation(heading??0)}
  if(dest)mark('dest',dest,'gdest',()=>{if(confirm('Törlöd az úti célt?'))clearDest()});
- [...osm,...mine].forEach(p=>{const i=mine.indexOf(p);const o=mark('p'+p.lat+','+p.lon+p.type,p,'gpin',()=>{if(i<0){$('status').textContent='Térképadat (OpenStreetMap)';return}if(confirm('Törlöd ezt a jelölést?')){mine.splice(mine.indexOf(p),1);save('konvoj.pins',mine);draw();gameSync()}});
-  o.m.getElement().textContent=p.type==='gate'?'🚧':'📸'});
+ points().forEach(p=>{const o=mark('p'+p.lat+','+p.lon+p.type,p,'gpin',null);o.m.getElement().textContent=emoji(p.type);
+  o.tap=()=>{if(p.key||mine.includes(p)){if(confirm(pinText(p)+'. Törlöd?')){removePin(p);gameSync()}}else $('status').textContent=pinText(p)}});
  pins.forEach((l,id)=>{const q=l.getLatLng(),p={lat:q.lat,lon:q.lng},red=l.options.fillColor==='#ff2d2d';
-  const o=mark('f'+id,p,'gfriend',()=>popup(p,l.getPopup().getContent().cloneNode(true)));o.m.getElement().classList.toggle('sos',red)});
+  const o=mark('f'+id,p,'gfriend',()=>popup(p,l.getPopup().getContent().cloneNode(true)));const e=o.m.getElement();e.classList.toggle('sos',red);let n=e.querySelector('.glabel');if(!n){n=el('span',null,'glabel');e.append(n)}n.textContent=l.label||''});
  if(meetMarker){const q=meetMarker.getLatLng(),p={lat:q.lat,lon:q.lng};const o=mark('meet',p,'gpin',()=>popup(p,meetMarker.getPopup().getContent()));o.m.getElement().textContent='🏁'}
  if(turnRef!==turnPts){turnRef=turnPts;gm.getSource('turn').setData(lineData(turnPts))}
  if(turnPts.length){const o=mark('turn',turnPts[turnPts.length-1],'gtip',null,true);o.m.setRotation(turnDir)}
@@ -419,6 +477,7 @@ function gameFit(){if(!gm||!gmReady||route.length<2)return;const b=new maplibreg
 map.on('moveend',()=>{if(gm&&gmReady&&!follow&&!route.length){const c=map.getCenter();gm.easeTo({center:[c.lng,c.lat],zoom:map.getZoom()-1,pitch:45,padding:{top:0,bottom:0,left:0,right:0}})}});
 setInterval(gameSync,500);
 setMap(load('konvoj.map','game'));applyGame();
+fetch('veda.json').then(r=>{if(!r.ok)throw 0;return r.json()}).then(a=>{veda=a.map(([lat,lon,road])=>({lat,lon,road,type:'veda'}));draw()}).catch(()=>$('status').textContent='A VÉDA lista nem töltött be.');
 // álló helyzetben is frissül a megosztott helyed
 setInterval(()=>{if(watching&&pos&&!document.hidden){if(last&&Date.now()-last.t>15000){$('kmh').textContent='0';samples=[];smooth=null;track=[]}share()}},30000);
 </script></body></html>
