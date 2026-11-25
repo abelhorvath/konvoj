@@ -171,6 +171,11 @@ body.drive #game .maplibregl-ctrl-bottom-right,body.drive .leaflet-bottom{bottom
 #status:empty{display:none}
 #gorow{display:flex;gap:8px;margin:0 10px 10px}#gorow #go{flex:1;width:auto;margin:0}#cancel{display:none;flex:none;padding:0 18px;border-radius:18px;font-size:16px;background:#262a38;border:1px solid #ff6b6b;color:#ff8080}
 body.ready #cancel{display:block}body.driving:not(.ready) #gorow{display:none}
+.gpin{width:26px;height:26px;line-height:26px;border-width:1.5px}.gpin svg.ic{width:16px;height:16px}
+.gpin.sm{width:21px;height:21px;line-height:21px;box-shadow:0 1px 4px #000a}.gpin.sm svg.ic{width:13px;height:13px;margin-top:-4px}
+.gpin.dot{width:9px;height:9px;background:var(--l);border:1.5px solid #101114;box-shadow:none}.gpin.dot svg.ic{display:none}
+.gcluster{box-sizing:border-box;min-width:21px;height:21px;padding:0 4px;border-radius:11px;background:#101114d9;border:1.5px solid var(--l);color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center}
+.pin.cam{line-height:17px;border-width:1.5px;box-shadow:none}.pin.cam svg.ic{width:12px;height:12px}
 </style></head><body>
 <div id="splash"><img src="icon.png?v=4" alt=""><b>KONVOJ</b><i></i></div>
 <div id="map"></div>
@@ -195,7 +200,7 @@ body.ready #cancel{display:block}body.driving:not(.ready) #gorow{display:none}
 const DB_URL='https://konvoj-f1824-default-rtdb.europe-west1.firebasedatabase.app';
 const $=id=>document.getElementById(id);
 // önfrissítés: ha a szerveren újabb verzió van, azt töltjük be a gyorsítótárazott helyett (a számot a version.txt-vel együtt kell növelni)
-const V=32;
+const V=33;
 fetch('version.txt',{cache:'no-store'}).then(r=>r.ok?r.text():0).then(t=>{const n=parseInt(t);if(n>V&&new URLSearchParams(location.search).get('v')!==String(n))location.replace('?v='+n+location.hash)}).catch(()=>{});
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
@@ -280,7 +285,7 @@ let mapId='neon',tiles=[];
 // a játékstílusú térkép alatt mindig ott a sima sötét térkép, ha a 3D nem tölt be
 function setMap(id){mapId=MAPS[id]?id:'neon';const base=MAPS[mapId][1];tiles.forEach(l=>map.removeLayer(l));tiles=base();tiles.forEach(l=>l.addTo(map))}
 const pinIcon=t=>t==='veda'?'cam':t;
-const icon=t=>L.divIcon({className:'pin',html:ic(pinIcon(t)),iconSize:[30,30]});
+const icon=t=>L.divIcon({className:'pin cam',html:ic(pinIcon(t)),iconSize:[20,20]});
 let veda=[],shared=[];
 let mine=load('konvoj.pins',[]),osm=[],pos=null,last=null,heading=null,lastFetch=null,fetching=false,audio=null,watching=false;
 const warned=new Map(),layer=L.layerGroup().addTo(map);let me=null;
@@ -691,13 +696,22 @@ function mark(key,p,cls,tap,arrow){let o=gmMarks.get(key);
   e.addEventListener('click',ev=>{ev.stopPropagation();o.tap?.()})}
  o.tap=tap;o.seen=true;const at=p.lat+','+p.lon;if(o.at!==at){o.at=at;o.m.setLngLat([p.lon,p.lat])}const e=o.m.getElement();cls.split(' ').forEach(n=>e.classList.add(n));return o}
 function popup(p,content){new maplibregl.Popup().setLngLat([p.lon,p.lat]).setDOMContent(content).addTo(gm)}
+// mérőpontok: kicsinyítve összevonva (darabszám), közepes nagyításnál pötty, közelről kis ikon
+function pinMarks(){const z=gm.getZoom?.()??15,list=points(),tapPin=p=>()=>{if(p.key||mine.includes(p))pinSheet(p);else $('status').textContent=pinText(p)};
+ const one=(p,size)=>{const o=mark('p'+size+p.lat+','+p.lon+p.type,p,'gpin '+size,tapPin(p)),e=o.m.getElement();if(e.dataset.t!==p.type){e.dataset.t=p.type;e.innerHTML=ic(pinIcon(p.type))}};
+ if(z>=11.5){list.forEach(p=>one(p,z>=13.5?'sm':'dot'));return}
+ // cella: kb. 56 képpontnyi terület az adott (egészre kerekített) nagyításnál
+ const level=Math.round(z),dx=360/(512*2**level)*56,dy=dx*.67,cells=new Map();
+ list.forEach(p=>{const k=Math.floor(p.lon/dx)+':'+Math.floor(p.lat/dy);(cells.get(k)||cells.set(k,[]).get(k)).push(p)});
+ cells.forEach((g,k)=>{if(g.length===1){one(g[0],'dot');return}
+  const at={lat:g.reduce((a,p)=>a+p.lat,0)/g.length,lon:g.reduce((a,p)=>a+p.lon,0)/g.length};
+  const o=mark('c'+level+k,at,'gcluster',()=>{follow=false;gm.easeTo({center:[at.lon,at.lat],zoom:level+2})}),e=o.m.getElement();if(e.textContent!==String(g.length))e.textContent=g.length})}
 function gameSync(){if(!gm||!gmReady)return;
  if(routeRef!==shown){routeRef=shown;gm.getSource('route').setData(lineData(shown))}
  gmMarks.forEach(o=>o.seen=false);
  if(pos){const o=mark('me',pos,'gme',null,true);o.m.setRotation(facing()??0);const e=o.m.getElement(),look=profile.car+profile.color;if(e.dataset.look!==look){e.dataset.look=look;const svg=carSvg(profile.car,profile.color);e.classList.toggle('car',!!svg);if(e.firstChild)e.firstChild.innerHTML=svg}}
  if(dest)mark('dest',dest,'gdest',()=>{if(confirm('Törlöd az úti célt?'))clearDest()});
- points().forEach(p=>{const o=mark('p'+p.lat+','+p.lon+p.type,p,'gpin',null),e=o.m.getElement();if(e.dataset.t!==p.type){e.dataset.t=p.type;e.innerHTML=ic(pinIcon(p.type))}
-  o.tap=()=>{if(p.key||mine.includes(p))pinSheet(p);else $('status').textContent=pinText(p)}});
+ pinMarks();
  pins.forEach((l,id)=>{const q=l.getLatLng(),p={lat:q.lat,lon:q.lng};
   const o=mark('f'+id,p,'gfriend',()=>popup(p,l.getPopup().getContent().cloneNode(true)));const e=o.m.getElement(),f=l.f||{},pr=X.prof?.[id],svg=pr?carSvg(pr.car,pr.color):'';e.classList.toggle('sos',!!f.sos);e.classList.toggle('car',!!svg);
   let body=e.querySelector('.body');if(svg){if(!body){body=el('div',null,'body');e.prepend(body)}if(body.dataset.look!==pr.car+pr.color){body.dataset.look=pr.car+pr.color;body.innerHTML=svg}body.style.transform=`rotate(${(Number(f.h)||0)-gm.getBearing()}deg)`}else body?.remove();
