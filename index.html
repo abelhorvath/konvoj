@@ -221,7 +221,7 @@ body.ready #cancel{display:block}body.driving:not(.ready) #gorow{display:none}
 const DB_URL='https://konvoj-f1824-default-rtdb.europe-west1.firebasedatabase.app';
 const $=id=>document.getElementById(id);
 // önfrissítés: ha a szerveren újabb verzió van, azt töltjük be a gyorsítótárazott helyett (a számot a version.txt-vel együtt kell növelni)
-const V=35;
+const V=36;
 fetch('version.txt',{cache:'no-store'}).then(r=>r.ok?r.text():0).then(t=>{const n=parseInt(t);if(n>V&&new URLSearchParams(location.search).get('v')!==String(n))location.replace('?v='+n+location.hash)}).catch(()=>{});
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
@@ -658,7 +658,7 @@ const routeLayers=c=>{const w=(a,b)=>['interpolate',['exponential',1.5],['zoom']
 // ---------- Teljesebb házak: Overture Maps (OpenStreetMap + műholdról felismert épületek) ----------
 // Külön töltődik a térkép után; ha nem elérhető, marad a sima épületréteg
 const OVERTURE='https://overturemaps-extras-us-west-2.s3.us-west-2.amazonaws.com/';
-let ovLib=null,ovUrl=null;
+let ovLib=null,ovUrl=null,ovLayers=['building'],ovTold=false;
 const script=src=>new Promise((ok,no)=>{const j=document.createElement('script');j.src=src;j.onload=ok;j.onerror=()=>{j.remove();no()};document.head.append(j)});
 function loadOverture(){if(ovLib)return ovLib;
  return ovLib=(async()=>{if(!window.pmtiles)await script('https://unpkg.com/pmtiles@3.2.0/dist/pmtiles.js');
@@ -667,19 +667,25 @@ function loadOverture(){if(ovLib)return ovLib;
   const r=await fetch(OVERTURE+'?list-type=2&prefix=tiles/&delimiter=/');if(!r.ok)throw 0;
   const list=[...(await r.text()).matchAll(/<Prefix>tiles\/(\d{4}-\d\d-\d\d\.\d+)\/<\/Prefix>/g)].map(m=>m[1]).sort((a,b)=>a.localeCompare(b,'en',{numeric:true}));
   if(!list.length)throw 0;ovUrl=OVERTURE+'tiles/'+list[list.length-1]+'/buildings.pmtiles';
-  await new pmtiles.PMTiles(ovUrl).getHeader()})().catch(e=>{ovLib=null;throw e})}
+  const meta=await new pmtiles.PMTiles(ovUrl).getMetadata(),names=(meta?.vector_layers||[]).map(l=>l.id).filter(n=>/^building/.test(n));
+  if(names.length)ovLayers=names})().catch(e=>{ovLib=null;throw e})}
 const ovHeight=['*',['max',['case',['has','height'],['to-number',['get','height']],['has','num_floors'],['*',['to-number',['get','num_floors']],3.2],5],4],1.8];
 async function addHouses(m){if(!m.getLayer?.('building-3d'))return;
  try{await loadOverture();if(gm!==m)return;
   m.addSource('ov',{type:'vector',url:'pmtiles://'+ovUrl,attribution:'© OpenStreetMap, Overture Maps Foundation'});
   const old=m.getPaintProperty('building-3d','fill-extrusion-color'),colors=Array.isArray(old)?[old[old.length-3],old[old.length-1]]:[old,old];
-  m.addLayer({id:'building-ov',type:'fill-extrusion',source:'ov','source-layer':'building',minzoom:13,paint:{
+  for(const name of ovLayers)m.addLayer({id:name==='building'?'building-ov':'ov-'+name,type:'fill-extrusion',source:'ov','source-layer':name,minzoom:13,paint:{
    'fill-extrusion-color':['interpolate',['linear'],ovHeight,6,colors[0],45,colors[1]],'fill-extrusion-height':ovHeight,'fill-extrusion-vertical-gradient':true,'fill-extrusion-opacity':.96}},
    m.getLayer('road-name')?'road-name':undefined);
+  let done=false,why='';
+  m.on('error',e=>{if(e?.sourceId==='ov'||/ov|pmtiles/i.test(e?.error?.message||''))why=e.error?.message||why});
   // a régi réteget csak akkor rejtjük el, amikor az új házak tényleg megérkeztek
-  const swap=()=>{if(gm!==m){m.off('idle',swap);return}if(m.querySourceFeatures('ov',{sourceLayer:'building'}).length){m.setLayoutProperty('building-3d','visibility','none');m.off('idle',swap)}};
-  m.on('idle',swap)}
- catch(e){console.warn('Overture',e)}}
+  const swap=()=>{if(done||gm!==m)return;if(ovLayers.some(n=>m.querySourceFeatures('ov',{sourceLayer:n}).length)){done=true;m.setLayoutProperty('building-3d','visibility','none');m.off('idle',swap);tellHouses('Bővített házadat betöltve.')}};
+  m.on('idle',swap);m.on('sourcedata',swap);
+  setTimeout(()=>{if(!done&&gm===m&&m.getZoom()>=13){swap();if(!done)tellHouses('A bővített házadat nem érkezett meg. '+why)}},25000)}
+ catch(e){console.warn('Overture',e);tellHouses('A bővített házadat nem töltött be. '+(e?.message||''))}}
+// egyszeri visszajelzés, hogy látszódjon, melyik házadat van a térképen
+function tellHouses(text){if(ovTold)return;ovTold=true;card('houses',text+' (v'+V+')',[],8)}
 // 3D épületek
 const blocks=(low,high,opacity)=>({id:'building-3d',type:'fill-extrusion',source:'om','source-layer':'building',minzoom:13,paint:{
  'fill-extrusion-color':['interpolate',['linear'],['coalesce',['get','render_height'],6],0,low,30,high],
