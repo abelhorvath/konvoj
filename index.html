@@ -102,17 +102,12 @@ body.driving:not(.ready) #game .maplibregl-ctrl-bottom-right{bottom:calc(var(--p
 .glabel{position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:3px;padding:1px 7px;border-radius:8px;background:#101114e0;color:#fff;font-size:11px;font-weight:700;white-space:nowrap}
 .leaflet-tooltip.flabel{background:#101114e0;border:0;color:#fff;font-weight:700;font-size:11px}.leaflet-tooltip.flabel::before{display:none}
 #alert{right:68px;padding:11px 8px;font-size:18px}
-#music{position:fixed;z-index:998;left:12px;top:calc(70px + env(safe-area-inset-top));display:flex;height:46px;max-width:calc(100% - 82px);background:#0b0d17e6;border:1px solid #6d5cff;border-radius:16px;overflow:hidden}
-#music button{background:none;border-radius:0;padding:0 14px;white-space:nowrap}
-#music #musicOpen::before{content:'♫';margin-right:8px;font-size:17px;color:var(--mc,#b9aeff)}
-#musicPick{border-left:1px solid #ffffff22!important}#musicPick[hidden]{display:none}
 </style></head><body>
 <div id="map"></div>
 <div id="game" hidden></div>
 <div id="panel" hidden></div>
 <form id="search"><input id="q" placeholder="Hova mész?" enterkeyhint="search"><button>Keresés</button><button type="button" id="center">◎</button></form>
 <button id="layers" type="button" aria-label="Térkép választása"><svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5"/></svg></button>
-<div id="music"><button id="musicOpen" type="button">Zene</button><button id="musicPick" type="button" aria-label="Másik zeneapp" hidden>▾</button></div>
 <div id="nav" class="box"></div>
 <div id="alert" class="box"></div>
 <div id="speed" class="box"><b id="kmh">–</b>km/h</div>
@@ -124,7 +119,7 @@ body.driving:not(.ready) #game .maplibregl-ctrl-bottom-right{bottom:calc(var(--p
 const DB_URL='https://konvoj-f1824-default-rtdb.europe-west1.firebasedatabase.app';
 const $=id=>document.getElementById(id);
 // önfrissítés: ha a szerveren újabb verzió van, azt töltjük be a gyorsítótárazott helyett (a számot a version.txt-vel együtt kell növelni)
-const V=20;
+const V=21;
 fetch('version.txt',{cache:'no-store'}).then(r=>r.ok?r.text():0).then(t=>{const n=parseInt(t);if(n>V&&new URLSearchParams(location.search).get('v')!==String(n))location.replace('?v='+n)}).catch(()=>{});
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
@@ -273,16 +268,6 @@ function renderTeam(){const p=$('panel');p.replaceChildren();
  const count=el('h3');count.id='count';const list=el('div');list.id='members';
  p.append(el('code',team.code),copy,speedButton(),count,list,action('Kilépés a csapatból',leave,'leave'));renderList()}
 $('team').onclick=()=>{$('panel').hidden=false;renderTeam()};
-// ---------- Zene ----------
-const PLAYERS={spotify:['Spotify','spotify://','#1ed760'],apple:['Apple Music','music://','#ff4e6b']};
-let player=load('konvoj.music',null);
-function showMusic(){const m=PLAYERS[player];$('musicOpen').textContent=m?m[0]:'Zene';$('music').style.setProperty('--mc',m?m[2]:'#b9aeff');$('musicPick').hidden=!m}
-function renderMusic(){const p=$('panel');p.replaceChildren();p.hidden=false;
- const head=el('div',null,'head');head.append(el('h2','Zene'),action('✕',()=>p.hidden=true,'x'));p.append(head);
- for(const[id,m]of Object.entries(PLAYERS))p.append(action(m[0]+(id===player?' ✓':''),()=>{player=id;save('konvoj.music',id);showMusic();p.hidden=true},id===player?'sel':''));
- p.append(el('p','A felső gombbal nyílik meg a zeneapp. Indítsd el a zenét, majd térj vissza a Konvojba.'))}
-$('musicOpen').onclick=()=>{const m=PLAYERS[player];if(!m){renderMusic();return}location.href=m[1]};
-$('musicPick').onclick=renderMusic;showMusic();
 // ---------- Csapatüzenetek ----------
 let chat=[],seenChat=null,replyTo='';
 const QUICK=['Megyek 👍','Várjatok meg','Megálltam','Hol vagy?','Késem pár percet','Ott találkozunk'];
