@@ -31,6 +31,19 @@ button{padding:14px 4px;border:0;border-radius:14px;background:#6d5cff;color:#ff
 .arrow div{width:30px;height:34px;margin:-17px 0 0 -15px;background:#fff;clip-path:polygon(50% 0,100% 100%,50% 76%,0 100%);filter:drop-shadow(0 0 4px #000)}
 .dest div{width:22px;height:22px;margin:-11px 0 0 -11px;background:#d94bff;border:3px solid #fff;transform:rotate(45deg);box-shadow:0 0 14px #d94bff}
 .dest{width:0;height:0}
+#dock{position:fixed;z-index:1000;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom))}
+#bar{position:static;display:grid;grid-template-columns:repeat(6,1fr);gap:0;padding:6px 2px;background:#12141cf2;border:1px solid #ffffff1f;border-radius:22px;box-shadow:0 8px 24px #0008}
+#bar button{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0;padding:8px 0;background:none;border-radius:16px;color:#e8e8f0;font-size:10.5px;font-weight:600;white-space:nowrap}
+#bar button:active{background:#ffffff1a}
+#bar svg{width:24px;height:24px;fill:none;stroke:#b9aeff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#help svg{stroke:#ffb020!important}#help.on{background:#c1121f}#help.on svg{stroke:#fff!important}
+#go{display:block;width:100%;margin-bottom:10px;padding:16px;border-radius:18px;font-size:18px;background:linear-gradient(90deg,#6d5cff,#d94bff);box-shadow:0 6px 20px #6d5cff80}
+#speed{width:84px;height:84px;padding:0;border-radius:50%;border:4px solid #6d5cff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:11px;bottom:calc(172px + env(safe-area-inset-bottom))}
+#speed b{font-size:32px;line-height:1}
+#status{bottom:calc(172px + env(safe-area-inset-bottom));border-color:#ffffff1f}
+.leaflet-bottom{bottom:calc(160px + env(safe-area-inset-bottom))}
+body.driving #speed,body.driving #status,body.driving .leaflet-bottom{bottom:calc(98px + env(safe-area-inset-bottom))}
+body.driving #go{display:none}
 </style></head><body>
 <div id="map"></div>
 <form id="search"><input id="q" placeholder="Hova mész?" enterkeyhint="search"><button>Keresés</button><button type="button" id="center">◎</button></form>
@@ -38,7 +51,7 @@ button{padding:14px 4px;border:0;border-radius:14px;background:#6d5cff;color:#ff
 <div id="alert" class="box"></div>
 <div id="speed" class="box"><b id="kmh">–</b>km/h<div id="lim"></div></div>
 <div id="status" class="box">Nyomd meg az Indulás gombot.</div>
-<div id="bar"><button id="go">Indulás</button><button id="addCam">+ Traffipax</button><button id="addGate">+ Kapu</button><button id="setLim">Limit</button><button id="team">Csapat</button><button id="help">⚠️ Gond van</button><button id="meet">🏁 Találka</button></div>
+<div id="dock"><button id="go">Indulás</button><div id="bar"><button id="addCam"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span>Trafi</span></button><button id="addGate"><svg viewBox="0 0 24 24"><path d="M4 21V5h16v16M4 9h16M9 9v3M15 9v3"/></svg><span>Kapu</span></button><button id="setLim"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg><span>Limit</span></button><button id="meet"><svg viewBox="0 0 24 24"><path d="M6 21V4h12l-3 4 3 4H6"/></svg><span>Találka</span></button><button id="team"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-8 12-8 12 0M16 5a3.5 3.5 0 010 7M18 14c2 1 3 3 3 6"/></svg><span>Csapat</span></button><button id="help"><svg viewBox="0 0 24 24"><path d="M12 3l10 18H2zM12 10v5M12 18v.5"/></svg><span>Gond van</span></button></div></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 // IDE írd be a saját Firebase Realtime Database címedet, a végén perjel nélkül:
@@ -73,7 +86,7 @@ function check(){let near=null;
  const name=near.type==='gate'?'Kapu':'Traffipax';$('alert').style.display='block';$('alert').textContent=`${name} ${Math.round(near.d/10)*10} m`;
  const key=near.lat+','+near.lon;if(Date.now()-(warned.get(key)||0)>120000){warned.set(key,Date.now());beep();
   if(window.speechSynthesis){const u=new SpeechSynthesisUtterance(name+' előtted');u.lang='hu-HU';speechSynthesis.speak(u)}}}
-function update(g){const c=g.coords,t=g.timestamp;pos={lat:c.latitude,lon:c.longitude};
+function update(g){document.body.classList.add('driving');const c=g.coords,t=g.timestamp;pos={lat:c.latitude,lon:c.longitude};
  let v=c.speed;
  if((v==null||v<0)&&last&&t>last.t&&c.accuracy<30)v=dist(last,pos)/((t-last.t)/1000);
  const kmh=v==null||v<0?null:Math.round(v*3.6);
@@ -134,7 +147,7 @@ function showMeet(p){if(!p||!Number.isFinite(p.lat)||!Number.isFinite(p.lon)){if
  const a=document.createElement('a');a.textContent='Útvonal megnyitása';a.target='_blank';a.rel='noopener';a.href=`https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}`;
  const b=document.createElement('button');b.textContent='Törlés';b.onclick=()=>{fetch(url('meet'),{method:'DELETE'});showMeet(null)};
  d.append(document.createElement('br'),a,document.createElement('br'),b);meetMarker.setPopupContent(d)}
-function showHelp(){$('help').textContent=needHelp?'✅ Rendben':'⚠️ Gond van';$('help').style.background=needHelp?'#c1121f':''}
+function showHelp(){$('help').querySelector('span').textContent=needHelp?'Rendben':'Gond van';$('help').classList.toggle('on',needHelp)}
 function ready(){if(team&&DB_URL)return true;$('status').textContent='Előbb lépj be egy csapatba.';return false}
 $('help').onclick=()=>{if(!ready())return;if(!pos){$('status').textContent='Előbb nyomd meg az Indulás gombot.';return}needHelp=!needHelp;showHelp();lastSent=0;share()};
 $('meet').onclick=()=>{if(!ready())return;picking=true;$('status').textContent='Koppints a térképre a találkozópont helyén.'};
