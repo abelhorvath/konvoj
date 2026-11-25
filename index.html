@@ -20,7 +20,11 @@ html,body{margin:0;height:100%;background:#0b0d17;color:#fff;font-family:-apple-
 button{padding:14px 4px;border:0;border-radius:14px;background:#6d5cff;color:#fff;font-size:14px;font-weight:700}
 .pin{font-size:24px;line-height:30px;text-align:center}
 #map{background:#1b1e22}
-.leaflet-tile-pane{filter:grayscale(1) invert(1) brightness(.85) contrast(1.15)}
+.m-dark{filter:grayscale(1) invert(1) brightness(.85) contrast(1.15)}
+.m-blue{filter:invert(1) hue-rotate(180deg) brightness(.95) saturate(1.4)}
+#layers{position:fixed;z-index:999;right:12px;top:calc(70px + env(safe-area-inset-top));width:46px;height:46px;padding:0;background:#0b0d17e6;border:1px solid #6d5cff}
+#layers svg{width:24px;height:24px;vertical-align:middle;fill:none;stroke:#b9aeff;stroke-width:1.8;stroke-linejoin:round}
+#panel button.sel{background:#6d5cff}
 #search{position:fixed;z-index:1001;top:calc(10px + env(safe-area-inset-top));left:12px;right:12px;display:flex;gap:6px}
 #q{flex:1;min-width:0;padding:12px;font-size:16px;border-radius:14px;border:1px solid #6d5cff;background:#0b0d17e6;color:#fff}
 #search button{padding:0 14px}
@@ -57,10 +61,24 @@ body.driving:not(.ready) #go{display:none}
 .leaflet-attribution-flag{display:none!important}
 .leaflet-container .leaflet-control-attribution{background:transparent;color:#ffffff66;font-size:9px}
 .leaflet-container .leaflet-control-attribution a{color:#ffffff66;text-decoration:none}
+/* alsó sáv teljesen a képernyő alján */
+:root{--gap:0px;--pb:max(6px,calc(env(safe-area-inset-bottom) - 12px))}
+/* iPhone főképernyős módban a nézet rövidebb a kijelzőnél, ezt pótoljuk */
+:root.app{--gap:calc(100% - 100vh)}
+#map{bottom:var(--gap)}
+#panel{bottom:var(--gap)}
+#dock{left:0;right:0;bottom:var(--gap)}
+#go{width:calc(100% - 20px);margin:0 10px 10px}
+#bar{padding:6px 2px var(--pb);border-width:1px 0 0;border-radius:22px 22px 0 0}
+#speed,#status{bottom:calc(var(--gap) + var(--pb) + 156px)}
+.leaflet-bottom{bottom:calc(var(--pb) + 144px)}
+body.driving:not(.ready) #speed,body.driving:not(.ready) #status{bottom:calc(var(--gap) + var(--pb) + 82px)}
+body.driving:not(.ready) .leaflet-bottom{bottom:calc(var(--pb) + 70px)}
 </style></head><body>
 <div id="map"></div>
 <div id="panel" hidden></div>
 <form id="search"><input id="q" placeholder="Hova mész?" enterkeyhint="search"><button>Keresés</button><button type="button" id="center">◎</button></form>
+<button id="layers" type="button" aria-label="Térkép választása"><svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5"/></svg></button>
 <div id="nav" class="box"></div>
 <div id="alert" class="box"></div>
 <div id="speed" class="box"><b id="kmh">–</b>km/h<div id="lim"></div></div>
@@ -71,11 +89,24 @@ body.driving:not(.ready) #go{display:none}
 // IDE írd be a saját Firebase Realtime Database címedet, a végén perjel nélkül:
 const DB_URL='https://konvoj-f1824-default-rtdb.europe-west1.firebasedatabase.app';
 const $=id=>document.getElementById(id);
+if(navigator.standalone)document.documentElement.classList.add('app');
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 const map=L.map('map',{zoomControl:false,tapHold:true}).setView([47.955,22.323],13);
 map.attributionControl.setPrefix(false);
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+const OSM='https://tile.openstreetmap.org/{z}/{x}/{y}.png',ESRI=n=>`https://server.arcgisonline.com/ArcGIS/rest/services/${n}/MapServer/tile/{z}/{y}/{x}`;
+const tl=(u,a,o)=>L.tileLayer(u,{maxZoom:19,attribution:a,...o});
+const osmA='© OpenStreetMap',esriA='© Esri, Maxar, Earthstar Geographics',sat=()=>tl(ESRI('World_Imagery'),esriA,{maxNativeZoom:18});
+const MAPS={
+ dark:['Sötét (alap)',()=>[tl(OSM,osmA,{className:'m-dark'})]],
+ blue:['Éjkék',()=>[tl(OSM,osmA,{className:'m-blue'})]],
+ light:['Világos',()=>[tl(OSM,osmA)]],
+ sat:['Műhold',()=>[sat()]],
+ hybrid:['Műhold feliratokkal',()=>[sat(),tl(ESRI('Reference/World_Transportation'),'',{maxNativeZoom:18}),tl(ESRI('Reference/World_Boundaries_and_Places'),'',{maxNativeZoom:18})]],
+ topo:['Domborzat',()=>[tl('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png','© OpenStreetMap, SRTM, © OpenTopoMap (CC-BY-SA)',{maxNativeZoom:17})]]};
+let mapId='dark',tiles=[];
+function setMap(id){mapId=MAPS[id]?id:'dark';tiles.forEach(l=>map.removeLayer(l));tiles=MAPS[mapId][1]();tiles.forEach(l=>l.addTo(map))}
+try{setMap(JSON.parse(localStorage.getItem('konvoj.map')))}catch(e){setMap('dark')}
 const icon=t=>L.divIcon({className:'pin',html:t==='gate'?'🚧':'📸',iconSize:[30,30]});
 let mine=load('konvoj.pins',[]),osm=[],pos=null,last=null,heading=null,limit=load('konvoj.limit',0),lastFetch=null,fetching=false,audio=null,watching=false;
 const warned=new Map(),layer=L.layerGroup().addTo(map);let me=null;
@@ -186,6 +217,10 @@ function renderTeam(){const p=$('panel');p.replaceChildren();
  const count=el('h3');count.id='count';const list=el('div');list.id='members';
  p.append(el('code',team.code),copy,count,list,action('Kilépés a csapatból',leave,'leave'));renderList()}
 $('team').onclick=()=>{$('panel').hidden=false;renderTeam()};
+function renderMaps(){const p=$('panel');p.replaceChildren();
+ const head=el('div',null,'head');head.append(el('h2','Térkép'),action('✕',()=>p.hidden=true,'x'));p.append(head);
+ for(const[id,m]of Object.entries(MAPS))p.append(action(m[0]+(id===mapId?' ✓':''),()=>{setMap(id);save('konvoj.map',id);p.hidden=true},id===mapId?'sel':''))}
+$('layers').onclick=()=>{$('panel').hidden=false;renderMaps()};
 setInterval(pull,5000);
 function showMeet(p){if(!p||!Number.isFinite(p.lat)||!Number.isFinite(p.lon)){if(meetMarker){map.removeLayer(meetMarker);meetMarker=null}return}
  if(!meetMarker)meetMarker=L.marker([p.lat,p.lon],{icon:L.divIcon({className:'pin',html:'🏁',iconSize:[30,30]})}).bindPopup('').addTo(map);
