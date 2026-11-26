@@ -201,7 +201,7 @@ body.drive #game .maplibregl-ctrl-bottom-right,body.drive .leaflet-bottom{bottom
  #status,body.ready #status,body.driving:not(.ready) #status{left:110px;right:auto;bottom:12px!important;max-width:240px}
  #alert,body.drive #alert{left:370px;right:360px;top:12px;bottom:auto;min-width:200px}
  #ptt{right:360px;top:auto;bottom:14px}#panel{left:auto;width:390px;max-height:96vh}
- #card,body.ready #card,body.drive #card{left:370px;right:360px;min-width:240px;bottom:90px!important}
+ #card,body.ready #card,body.drive #card{left:120px;right:436px;min-width:0;bottom:14px!important}
  #bar button{padding:4px 0}#go{padding:10px}#navvoice button{padding:7px 4px}
 }
 #status:empty{display:none}
@@ -228,6 +228,8 @@ body.searching #quick{display:flex}#quick{display:none}
 .hero{display:flex;justify-content:center;margin-top:12px;border-radius:18px;overflow:hidden;background:radial-gradient(ellipse at 50% 100%,color-mix(in srgb,var(--b) 55%,transparent),#0b0d17 75%)}
 .hero svg{width:150px;height:150px;margin:14px}.hero .ava{width:96px;height:96px;margin:24px;font-size:36px}.photo{display:block;width:100%;border-radius:14px}
 .finfo{margin-top:10px;font-size:15px;line-height:1.7;text-align:center}.finfo button{display:inline-block!important;width:calc(50% - 5px)!important;margin-right:5px}
+body.gmon #map{visibility:hidden}body.gmon #game{background:#0b0d17}
+@media (orientation:portrait),(min-height:601px){#nav{top:calc(134px + env(safe-area-inset-top))}body.drive #nav{top:calc(10px + env(safe-area-inset-top))}#card{left:108px}#ptt{top:max(37vh,calc(292px + env(safe-area-inset-top)))}}
 </style></head><body>
 <div id="splash"><div class="warp"></div><div class="stage"><div class="logo"><u></u><u></u><img src="icon.png?v=4" alt=""></div><div class="name"><b style="--n:0">K</b><b style="--n:1">O</b><b style="--n:2">N</b><b style="--n:3">V</b><b style="--n:4">O</b><b style="--n:5">J</b></div><div class="line"></div></div><div class="flash"></div></div>
 <script>
@@ -260,7 +262,7 @@ body.searching #quick{display:flex}#quick{display:none}
 const DB_URL='https://konvoj-f1824-default-rtdb.europe-west1.firebasedatabase.app';
 const $=id=>document.getElementById(id);
 // önfrissítés: ha a szerveren újabb verzió van, azt töltjük be a gyorsítótárazott helyett (a számot a version.txt-vel együtt kell növelni)
-const V=46;
+const V=47;
 fetch('version.txt',{cache:'no-store'}).then(r=>r.ok?r.text():0).then(t=>{const n=parseInt(t);if(n>V&&new URLSearchParams(location.search).get('v')!==String(n))location.replace('?v='+n+location.hash)}).catch(()=>{});
 const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
@@ -402,7 +404,7 @@ function startCompass(tapped){if(compassOn||!window.DeviceOrientationEvent||(typ
  const listen=()=>{addEventListener('deviceorientation',onTurn);addEventListener('deviceorientationabsolute',onTurn)};
  const ask=DeviceOrientationEvent.requestPermission;
  if(typeof ask!=='function'){listen();return}
- ask.call(DeviceOrientationEvent).then(r=>{if(r==='granted')listen();else{compassOn=false;$('status').textContent='Iránytű engedély nélkül az ikon csak menet közben fordul.'}}).catch(()=>compassOn=false)}
+ ask.call(DeviceOrientationEvent).then(r=>{if(r==='granted')listen();else{compassOn=false;const t='Iránytű engedély nélkül az ikon csak menet közben fordul.';$('status').textContent=t;setTimeout(()=>{if($('status').textContent===t)$('status').textContent=''},8000)}}).catch(()=>compassOn=false)}
 // megnyitásonként egyszer, az első koppintásra
 addEventListener('click',()=>startCompass(true),{once:true,capture:true});
 // Sebesség-simítás: kiszűri a GPS ugrásait
@@ -566,7 +568,7 @@ function pickMeet(){$('panel').hidden=true;if(!ready())return;picking=true;$('st
 const COLORS=['#ff5fa2','#a855f7','#2f8cff','#00d97e','#ffd400','#ff3b30','#ff8a00'];
 let fromTeam=false,routeColor=load('konvoj.color',null),shown=[],navigating=false,steps=[],cum=[],turnPts=[],turnDir=0,turnLayer=null,follow=true,dest=null,destMarker=null,route=[],lines=[],lastRoute=0,routeId=0;
 map.on('dragstart',()=>follow=false);
-$('center').onclick=()=>{follow=true;if(pos)map.setView([pos.lat,pos.lon],17)};
+$('center').onclick=()=>{follow=true;wasFollow=false;camKey='';hideHistory();if(pos)map.setView([pos.lat,pos.lon],17)};
 const kmTxt=m=>m<1000?Math.round(m/10)*10+' m':(m/1000).toFixed(1)+' km';
 function clearDest(){document.body.classList.remove('ready','drive');via=[];alts=[];altIdx=0;routeInfo=null;addingStop=false;destWeather=null;routeId++;dest=null;route=[];shown=[];steps=[];showTurn(null);lines.forEach(l=>map.removeLayer(l));lines=[];if(destMarker)map.removeLayer(destMarker);destMarker=null;$('nav').style.display='none'}
 function setDest(p){if(addingStop&&dest&&!fromTeam){const name=myDest;myDest=keptName;addStop(p,name);return}
@@ -727,7 +729,7 @@ async function addHouses(m){if(!m.getLayer?.('building-3d'))return;
   let done=false,why='';
   m.on('error',e=>{if(e?.sourceId==='ov'||/ov|pmtiles/i.test(e?.error?.message||''))why=e.error?.message||why});
   // a régi réteget csak akkor rejtjük el, amikor az új házak tényleg megérkeztek
-  const swap=()=>{if(done||gm!==m)return;if(ovLayers.some(n=>m.querySourceFeatures('ov',{sourceLayer:n}).length)){done=true;m.setLayoutProperty('building-3d','visibility','none');m.off('idle',swap);tellHouses('Bővített házadat betöltve.')}};
+  const swap=()=>{if(done||gm!==m)return;if(ovLayers.some(n=>m.querySourceFeatures('ov',{sourceLayer:n}).length)){done=true;m.setLayoutProperty('building-3d','visibility','none');m.off('idle',swap)}};
   m.on('idle',swap);m.on('sourcedata',swap);
   setTimeout(()=>{if(!done&&gm===m&&m.getZoom()>=13){swap();if(!done)tellHouses('A bővített házadat nem érkezett meg. '+why)}},25000)}
  catch(e){console.warn('Overture',e);tellHouses('A bővített házadat nem töltött be. '+(e?.message||''))}}
@@ -769,17 +771,20 @@ const lineData=a=>({type:'Feature',properties:{},geometry:{type:'LineString',coo
 function loadLib(){if(window.maplibregl)return Promise.resolve();if(gmLoading)return gmLoading;
  return gmLoading=new Promise((ok,no)=>{const c=document.createElement('link');c.rel='stylesheet';c.href='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.append(c);
   const j=document.createElement('script');j.src='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';j.onload=ok;j.onerror=()=>{gmLoading=null;j.remove();no()};document.head.append(j)})}
-function stopGame(){if(gm)gm.remove();gm=null;gmReady=false;gmMarks.clear();$('game').hidden=true;$('game').replaceChildren()}
+// távolról nézve a döntés fokozatosan megszűnik, különben a térkép széle fölött üres lenne a kép
+const maxTilt=z=>Math.max(0,Math.min(68,(z-9)*22));
+function stopGame(){document.body.classList.remove('gmon');if(gm)gm.remove();gm=null;gmReady=false;gmMarks.clear();$('game').hidden=true;$('game').replaceChildren()}
 function gameFail(){stopGame();$('status').textContent='A 3D térkép nem töltött be, a sima térképet látod.'}
 async function applyGame(){const look=MAPS[mapId][2];gmTheme=look;if(!look){stopGame();return}
  try{await loadLib();if(gmTheme!==look)return;stopGame();$('game').hidden=false;
   const c=pos||{lat:map.getCenter().lat,lon:map.getCenter().lng};
-  const m=gm=new maplibregl.Map({container:'game',style:gameStyle(look),center:[c.lon,c.lat],zoom:pos?15.8:14,pitch:60,maxPitch:68,attributionControl:false});
+  const m=gm=new maplibregl.Map({container:'game',style:gameStyle(look),center:[c.lon,c.lat],zoom:pos?15.8:14,pitch:60,maxPitch:68,minZoom:5,attributionControl:false});
   m.addControl(new maplibregl.AttributionControl({compact:true,customAttribution:'OpenFreeMap'}),'bottom-right');
   const timer=setTimeout(()=>{if(gm===m&&!gmReady)gameFail()},45000);
-  m.once('load',()=>{clearTimeout(timer);if(gm!==m)return;gmReady=true;camKey='';wasFollow=false;routeRef=null;turnRef=null;addHouses(m);
+  m.once('load',()=>{clearTimeout(timer);if(gm!==m)return;gmReady=true;document.body.classList.add('gmon');camKey='';wasFollow=false;routeRef=null;turnRef=null;addHouses(m);
    m.getContainer().querySelector('.maplibregl-compact-show')?.classList.remove('maplibregl-compact-show');gameSync()});
   m.on('dragstart',()=>follow=false);
+  m.on('zoomend',()=>{const lim=maxTilt(m.getZoom());if(m.getPitch()>lim+1)m.easeTo({pitch:lim,duration:300})});
   const send=(name,ll)=>map.fire(name,{latlng:L.latLng(ll.lat,ll.lng)});
   m.on('click',e=>{if(e.originalEvent.target===m.getCanvas())send('click',e.lngLat)});
   // hosszú nyomás: úti cél (iPhone-on nincs jobb kattintás)
@@ -826,7 +831,7 @@ function gameSync(){if(!gm||!gmReady)return;
  pubMarks();trailSync();historySync();
  gmMarks.forEach((o,k)=>{if(!o.seen){o.m.remove();gmMarks.delete(k)}});
  if(follow&&pos){const f=facing(),key=[pos.lat,pos.lon,navigating&&f!=null?Math.round(f/4):'',navigating].join();
-  if(!wasFollow||key!==camKey){camKey=key;gm.easeTo({center:[pos.lon,pos.lat],bearing:navigating?f??gm.getBearing():0,pitch:navigating?66:60,padding:{top:navigating?Math.round(innerHeight*.35):0,bottom:0,left:0,right:0},duration:900,...(wasFollow?{}:{zoom:navigating?16.8:15.8})})}}
+  if(!wasFollow||key!==camKey){camKey=key;gm.easeTo({center:[pos.lon,pos.lat],bearing:navigating?f??gm.getBearing():0,pitch:Math.min(navigating?66:60,wasFollow?maxTilt(gm.getZoom?.()??16):68),padding:{top:navigating?Math.round(innerHeight*.35):0,bottom:0,left:0,right:0},duration:900,...(wasFollow?{}:{zoom:navigating?16.8:15.8})})}}
  wasFollow=follow&&!!pos}
 function gameFit(){if(!gm||!gmReady||route.length<2)return;const b=new maplibregl.LngLatBounds();route.forEach(p=>b.extend([p.lon,p.lat]));wasFollow=false;
  gm.fitBounds(b,{padding:{top:200,bottom:250,left:50,right:50},pitch:40,bearing:0})}
